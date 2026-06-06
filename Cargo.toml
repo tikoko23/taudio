@@ -1,0 +1,9 @@
+[package]
+name = "taudio"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bitvec = "1.0.1"
+smallvec = "1.15.1"
+thiserror = "2.0.18"
