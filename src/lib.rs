@@ -11,6 +11,7 @@ pub mod err;
 pub mod id;
 pub mod node;
 pub mod pipeline;
+pub mod wav;
 pub mod waveform;
 
 pub mod sinks;
