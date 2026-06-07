@@ -16,10 +16,10 @@ pub enum AudioError {
     InvalidSampleRate(u32),
 
     #[error("Too few channels: Expected at least {min}, got {got}")]
-    TooFewChannels { got: u32, min: u32 },
+    TooFewChannels { got: usize, min: usize },
 
     #[error("Too many channels: Expected at most {max}, got {got}")]
-    TooManyChannels { got: u32, max: u32 },
+    TooManyChannels { got: usize, max: usize },
 
     #[error("Cycled dependencies")]
     Cycle,
@@ -27,8 +27,8 @@ pub enum AudioError {
     #[error("Mismatched channels: Expected {expected} outputs for {node_name}, got {got}")]
     MismatchedChannels {
         node_name: String,
-        got: u32,
-        expected: u32,
+        got: usize,
+        expected: usize,
     },
 
     #[error(transparent)]
@@ -39,7 +39,10 @@ impl AudioError {
     /// Returns [`AudioError::TooFewChannels`] if `got` is below `expected`,
     /// [`AudioError::TooManyChannels`] if `got` is above `expected` and [`Ok`]
     /// if `got` is within `expected`.
-    pub fn expect_channels<R: RangeBounds<u32>>(expected: R, got: u32) -> Result<(), AudioError> {
+    pub fn expect_channels<R: RangeBounds<usize>>(
+        expected: R,
+        got: usize,
+    ) -> Result<(), AudioError> {
         if expected.contains(&got) {
             return Ok(());
         }
@@ -71,6 +74,10 @@ impl AudioError {
         }
 
         unreachable!("all of the above must catch any number")
+    }
+
+    pub fn boxed<E: Error + 'static>(err: E) -> Self {
+        Self::Boxed(Box::new(err))
     }
 }
 

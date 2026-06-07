@@ -97,23 +97,24 @@ impl From<AudioBuffer> for Box<[Real]> {
 }
 
 #[derive(Debug)]
-pub struct ChannelSlice<'a> {
+pub struct SampleChannels<'a> {
+    pub(crate) num_samples: usize,
     pub(crate) buffers: &'a IdContainer<Vec<RefCell<AudioBuffer>>>,
     pub(crate) channels: &'a SmallVec<[BufferId; 16]>,
 }
 
-impl<'a> ChannelSlice<'a> {
+impl<'a> SampleChannels<'a> {
     #[inline]
-    pub fn get(&self, index: usize) -> Ref<'_, [Real]> {
+    pub fn get_channel(&self, index: usize) -> Ref<'_, [Real]> {
         Ref::map(self.buffers[self.channels[index]].borrow(), |b| {
-            b.as_slice()
+            &b[0..self.num_samples]
         })
     }
 
     #[inline]
-    pub fn get_mut(&mut self, index: usize) -> RefMut<'_, [Real]> {
+    pub fn get_channel_mut(&mut self, index: usize) -> RefMut<'_, [Real]> {
         RefMut::map(self.buffers[self.channels[index]].borrow_mut(), |b| {
-            b.as_slice_mut()
+            &mut b[0..self.num_samples]
         })
     }
 }

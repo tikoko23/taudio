@@ -1,21 +1,21 @@
 use taudio::{
-    buffer::ChannelSlice,
+    buffer::SampleChannels,
     err::AudioError,
     node::{
         AudioNodeCommon, AudioProcessor, AudioProcessorCfg, AudioProcessorInfo, AudioSink,
-        AudioSinkCfg, AudioSinkInfo, AudioSource, AudioSourceCfg, AudioSourceInfo,
+        AudioSinkCfg, AudioSinkInfo, AudioSource, AudioSourceCfg, AudioSourceInfo, SamplingContext,
     },
     pipeline::{PipelineBuilder, PipelineOpts},
 };
 
 #[derive(Debug, Clone)]
-struct TestSource(u32);
+struct TestSource(usize);
 
 #[derive(Debug, Clone)]
-struct TestProcessor(u32, u32);
+struct TestProcessor(usize, usize);
 
 #[derive(Debug, Clone)]
-struct TestSink(u32);
+struct TestSink(usize);
 
 impl AudioNodeCommon for TestSource {
     fn name(&self) -> &str {
@@ -44,7 +44,11 @@ impl AudioSource for TestSource {
         })
     }
 
-    fn sample(&mut self, _output: &mut ChannelSlice<'_>) -> Result<(), AudioError> {
+    fn sample(
+        &mut self,
+        _ctx: &SamplingContext,
+        _output: &mut SampleChannels<'_>,
+    ) -> Result<(), AudioError> {
         Ok(())
     }
 }
@@ -60,8 +64,9 @@ impl AudioProcessor for TestProcessor {
 
     fn sample(
         &mut self,
-        _input: &ChannelSlice<'_>,
-        _output: &mut ChannelSlice<'_>,
+        _ctx: &SamplingContext,
+        _input: &SampleChannels<'_>,
+        _output: &mut SampleChannels<'_>,
     ) -> Result<(), AudioError> {
         Ok(())
     }
@@ -74,7 +79,11 @@ impl AudioSink for TestSink {
         Ok(AudioSinkInfo {})
     }
 
-    fn sample(&mut self, _input: &ChannelSlice<'_>) -> Result<(), AudioError> {
+    fn sample(
+        &mut self,
+        _ctx: &SamplingContext,
+        _input: &SampleChannels<'_>,
+    ) -> Result<(), AudioError> {
         Ok(())
     }
 }

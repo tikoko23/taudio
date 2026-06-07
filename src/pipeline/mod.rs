@@ -1,14 +1,13 @@
-use std::cell::{Ref, RefCell};
+use std::cell::RefCell;
 
 use crate::{
-    Real,
-    buffer::{AudioBuffer, ChannelSlice},
+    buffer::{AudioBuffer, SampleChannels},
     err::AudioError,
     id::IdContainer,
     incremental_id,
     node::{
         AudioNodeCommon, AudioProcessor, AudioProcessorInfo, AudioSink, AudioSinkInfo, AudioSource,
-        AudioSourceInfo,
+        AudioSourceInfo, SamplingContext,
     },
 };
 
@@ -84,24 +83,6 @@ pub(crate) struct BufferAssignment {
     pub(crate) outputs: SmallVec<[BufferId; 16]>,
 }
 
-pub struct SampleBuffers<'a> {
-    buffer_ids: &'a [BufferId],
-    buffers: &'a IdContainer<Vec<RefCell<AudioBuffer>>>,
-}
-
-impl<'a> Iterator for SampleBuffers<'a> {
-    type Item = Ref<'a, [Real]>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let next_id = self.buffer_ids.first().copied()?;
-        let buffer = &self.buffers[next_id];
-
-        self.buffer_ids = &self.buffer_ids[1..];
-
-        Some(Ref::map(buffer.borrow(), |r| r.as_slice()))
-    }
-}
-
 #[derive(Debug)]
 pub struct Pipeline {
     buffers: IdContainer<Vec<RefCell<AudioBuffer>>>,
@@ -109,6 +90,7 @@ pub struct Pipeline {
     nodes: Vec<PipelineAudioNode>,
     buffer_assignments: Vec<BufferAssignment>,
     output_bufs: Vec<BufferId>,
+    current_sample_offset: u64,
 }
 
 impl From<PipelineTemplate> for Pipeline {
@@ -140,6 +122,7 @@ impl From<PipelineTemplate> for Pipeline {
             buffer_assignments: template.buffer_assignments,
             output_bufs: vec![],
             nodes: ordered_nodes,
+            current_sample_offset: 0,
             buffers,
         }
     }
@@ -148,7 +131,7 @@ impl From<PipelineTemplate> for Pipeline {
 impl Pipeline {
     /// # Panics
     /// Panics if the requested sample count is greater than the pipeline sample count.
-    pub fn sample(&mut self, n_samples: u32) -> Result<SampleBuffers<'_>, AudioError> {
+    pub fn sample(&mut self, n_samples: u32) -> Result<(), AudioError> {
         if self.opts.sample_rate.get() < n_samples {
             panic!("number of requested samples exceeded pipeline sample rate");
         }
@@ -158,38 +141,43 @@ impl Pipeline {
         for (i, node) in self.nodes.iter_mut().enumerate() {
             let assignment = &self.buffer_assignments[i];
 
-            let input_buffers = ChannelSlice {
+            let input_buffers = SampleChannels {
+                num_samples: n_samples as usize,
                 buffers: &self.buffers,
                 channels: &assignment.inputs,
             };
 
-            let mut output_buffers = ChannelSlice {
+            let mut output_buffers = SampleChannels {
+                num_samples: n_samples as usize,
                 buffers: &self.buffers,
                 channels: &assignment.outputs,
             };
 
+            let context = SamplingContext {
+                sample_rate: self.opts.sample_rate.get(),
+                batch_begin: self.current_sample_offset,
+                num_samples: n_samples,
+            };
+
             match node {
                 PipelineAudioNode::Source { node, src_info: _ } => {
-                    node.sample(&mut output_buffers)?
+                    node.sample(&context, &mut output_buffers)?
                 }
 
                 PipelineAudioNode::Processor {
                     node,
                     inputs: _,
                     proc_info: _,
-                } => node.sample(&input_buffers, &mut output_buffers)?,
+                } => node.sample(&context, &input_buffers, &mut output_buffers)?,
 
                 PipelineAudioNode::Sink {
                     node,
                     inputs: _,
                     sink_info: _,
-                } => node.sample(&input_buffers)?,
+                } => node.sample(&context, &input_buffers)?,
             }
         }
 
-        Ok(SampleBuffers {
-            buffer_ids: &self.output_bufs,
-            buffers: &self.buffers,
-        })
+        Ok(())
     }
 }

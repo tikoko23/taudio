@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::{buffer::ChannelSlice, err::AudioError};
+use crate::{Real, buffer::SampleChannels, err::AudioError};
 
 macro_rules! boxed_clone {
     ($($vis:vis trait $TraitName:ident for<dyn $DynName:path> { ... })*) => {
@@ -95,12 +95,12 @@ pub struct AudioSourceCfg {
 
 #[derive(Debug, Clone)]
 pub struct AudioSourceInfo {
-    pub num_outputs: u32,
+    pub num_outputs: usize,
 }
 
 #[derive(Debug)]
 pub struct AudioSinkCfg {
-    pub num_inputs: u32,
+    pub num_inputs: usize,
     pub sample_rate: u32,
 }
 
@@ -110,12 +110,44 @@ pub struct AudioSinkInfo {}
 #[derive(Debug, Clone)]
 pub struct AudioProcessorCfg {
     pub sample_rate: u32,
-    pub num_inputs: u32,
+    pub num_inputs: usize,
 }
 
 #[derive(Debug, Clone)]
 pub struct AudioProcessorInfo {
-    pub num_outputs: u32,
+    pub num_outputs: usize,
+}
+
+#[derive(Debug)]
+pub struct SamplingContext {
+    pub(crate) sample_rate: u32,
+    pub(crate) batch_begin: u64,
+    pub(crate) num_samples: u32,
+}
+
+impl SamplingContext {
+    #[inline]
+    pub fn get_samples_per_second(&self) -> u32 {
+        self.sample_rate
+    }
+
+    /// Returns the index of the sample of the batch start.
+    #[inline]
+    pub fn get_batch_start(&self) -> u64 {
+        self.batch_begin
+    }
+
+    /// Get the global time offset (in seconds) of the given *local* sample index.
+    #[inline]
+    pub fn time_of(&self, index: usize) -> Real {
+        (self.batch_begin + index as u64) as Real / self.sample_rate as Real
+    }
+
+    /// Returns the number of batches in this sample.
+    #[inline]
+    pub fn batch_size(&self) -> usize {
+        self.num_samples as usize
+    }
 }
 
 pub trait AudioNodeCommon: 'static + Debug {
@@ -127,20 +159,31 @@ pub trait AudioNodeCommon: 'static + Debug {
 pub trait AudioSource: AudioSourceClone + AudioNodeCommon {
     fn setup(&mut self, cfg: &AudioSourceCfg) -> Result<AudioSourceInfo, AudioError>;
 
-    fn sample(&mut self, output: &mut ChannelSlice<'_>) -> Result<(), AudioError>;
+    fn sample(
+        &mut self,
+        ctx: &SamplingContext,
+        output: &mut SampleChannels<'_>,
+    ) -> Result<(), AudioError>;
 }
 
 pub trait AudioSink: AudioSinkClone + AudioNodeCommon {
     fn setup(&mut self, cfg: &AudioSinkCfg) -> Result<AudioSinkInfo, AudioError>;
-    fn sample(&mut self, input: &ChannelSlice<'_>) -> Result<(), AudioError>;
+
+    fn sample(
+        &mut self,
+        ctx: &SamplingContext,
+        input: &SampleChannels<'_>,
+    ) -> Result<(), AudioError>;
 }
 
 pub trait AudioProcessor: AudioProcessorClone + AudioNodeCommon {
     fn setup(&mut self, cfg: &AudioProcessorCfg) -> Result<AudioProcessorInfo, AudioError>;
 
+    /// The batch size of the input and the output are *guaranteed* to be the same.
     fn sample(
         &mut self,
-        input: &ChannelSlice<'_>,
-        output: &mut ChannelSlice<'_>,
+        ctx: &SamplingContext,
+        input: &SampleChannels<'_>,
+        output: &mut SampleChannels<'_>,
     ) -> Result<(), AudioError>;
 }

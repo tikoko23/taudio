@@ -129,7 +129,7 @@ impl PipelineBuilder {
 
         let proc_info = proc.setup(&AudioProcessorCfg {
             sample_rate: self.opts.sample_rate.get(),
-            num_inputs: inputs.len() as u32,
+            num_inputs: inputs.len(),
         })?;
 
         Ok(self.nodes.push_id(PipelineAudioNode::Processor {
@@ -159,7 +159,7 @@ impl PipelineBuilder {
         let inputs = inputs.get_inputs();
 
         let sink_info = sink.setup(&AudioSinkCfg {
-            num_inputs: inputs.len() as u32,
+            num_inputs: inputs.len(),
             sample_rate: self.opts.sample_rate.get(),
         })?;
 

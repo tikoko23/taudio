@@ -161,7 +161,7 @@ impl BufferIdAllocator {
 fn assign_buffers(
     graph: &Graph,
     topological_order: &[NodeId],
-    num_outputs: &IdContainer<Vec<u32>>,
+    num_outputs: &IdContainer<Vec<usize>>,
     nodes: &IdContainer<Vec<PipelineAudioNode>>,
 ) -> AssignmentResult {
     let mut node_to_topo_index = IdContainer::new(vec![0; graph.len()]);
@@ -207,7 +207,7 @@ fn assign_buffers(
 
     for (id, node) in nodes.iter_with_id::<NodeId>() {
         let n_inputs = node.inputs().len();
-        let n_outputs = num_outputs[id] as usize;
+        let n_outputs = num_outputs[id];
 
         let dummy_assignment = BufferAssignment {
             inputs: smallvec![BufferId(NonZeroU32::MAX); n_inputs],
@@ -261,18 +261,19 @@ mod test {
         node::{
             AudioNodeCommon, AudioProcessor, AudioProcessorCfg, AudioProcessorInfo, AudioSink,
             AudioSinkCfg, AudioSinkInfo, AudioSource, AudioSourceCfg, AudioSourceInfo,
+            SamplingContext,
         },
         pipeline::{BufferId, PipelineBuilder, PipelineOpts},
     };
 
     #[derive(Debug, Clone)]
-    struct TestSource(u32);
+    struct TestSource(usize);
 
     #[derive(Debug, Clone)]
-    struct TestProcessor(u32, u32);
+    struct TestProcessor(usize, usize);
 
     #[derive(Debug, Clone)]
-    struct TestSink(u32);
+    struct TestSink(usize);
 
     impl AudioNodeCommon for TestSource {
         fn name(&self) -> &str {
@@ -303,7 +304,8 @@ mod test {
 
         fn sample(
             &mut self,
-            _output: &mut crate::buffer::ChannelSlice<'_>,
+            _ctx: &SamplingContext,
+            _output: &mut crate::buffer::SampleChannels<'_>,
         ) -> Result<(), AudioError> {
             Ok(())
         }
@@ -320,8 +322,9 @@ mod test {
 
         fn sample(
             &mut self,
-            _input: &crate::buffer::ChannelSlice<'_>,
-            _output: &mut crate::buffer::ChannelSlice<'_>,
+            _ctx: &SamplingContext,
+            _input: &crate::buffer::SampleChannels<'_>,
+            _output: &mut crate::buffer::SampleChannels<'_>,
         ) -> Result<(), AudioError> {
             Ok(())
         }
@@ -334,7 +337,11 @@ mod test {
             Ok(AudioSinkInfo {})
         }
 
-        fn sample(&mut self, _input: &crate::buffer::ChannelSlice<'_>) -> Result<(), AudioError> {
+        fn sample(
+            &mut self,
+            _ctx: &SamplingContext,
+            _input: &crate::buffer::SampleChannels<'_>,
+        ) -> Result<(), AudioError> {
             Ok(())
         }
     }
