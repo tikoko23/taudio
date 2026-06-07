@@ -13,7 +13,7 @@ use crate::{
 
 /// Represents a pipeline graph which has been checked to be valid. [`Pipeline`] instances can be
 /// constructed using [`From`].
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct PipelineTemplate {
     pub(crate) opts: PipelineOpts,
     pub(crate) topological_order: Vec<NodeId>,
@@ -41,13 +41,6 @@ impl PipelineTemplate {
     #[inline]
     pub fn set_opts(&mut self, opts: PipelineOpts) {
         self.opts = opts;
-    }
-
-    pub fn with_opts(&self, opts: PipelineOpts) -> PipelineTemplate {
-        let mut templ = self.clone();
-        templ.opts = opts;
-
-        templ
     }
 }
 
@@ -256,10 +249,11 @@ fn assign_buffers(
 #[cfg(test)]
 mod test {
     use crate::{
+        dupe::Dupe,
         err::AudioError,
         id::NumericId,
         node::{
-            AudioNodeCommon, AudioProcessor, AudioProcessorCfg, AudioProcessorInfo, AudioSink,
+            AudioNode, AudioProcessor, AudioProcessorCfg, AudioProcessorInfo, AudioSink,
             AudioSinkCfg, AudioSinkInfo, AudioSource, AudioSourceCfg, AudioSourceInfo,
             SamplingContext,
         },
@@ -275,19 +269,19 @@ mod test {
     #[derive(Debug, Clone)]
     struct TestSink(usize);
 
-    impl AudioNodeCommon for TestSource {
+    impl AudioNode for TestSource {
         fn name(&self) -> &str {
             "@test:source"
         }
     }
 
-    impl AudioNodeCommon for TestProcessor {
+    impl AudioNode for TestProcessor {
         fn name(&self) -> &str {
             "@test:processor"
         }
     }
 
-    impl AudioNodeCommon for TestSink {
+    impl AudioNode for TestSink {
         fn name(&self) -> &str {
             "@test:sink"
         }
@@ -345,6 +339,10 @@ mod test {
             Ok(())
         }
     }
+
+    impl Dupe for TestSource {}
+    impl Dupe for TestProcessor {}
+    impl Dupe for TestSink {}
 
     macro_rules! bid {
         ($n:literal) => {

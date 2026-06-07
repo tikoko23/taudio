@@ -3,8 +3,9 @@ use std::fmt::Debug;
 use crate::{
     Real,
     buffer::SampleChannels,
+    dupe::Dupe,
     err::AudioError,
-    node::{AudioNodeCommon, AudioSource, AudioSourceCfg, AudioSourceInfo, SamplingContext},
+    node::{AudioNode, AudioSource, AudioSourceCfg, AudioSourceInfo, SamplingContext},
     waveform::WaveSource,
 };
 
@@ -14,6 +15,12 @@ pub struct Osc<W: WaveSource + Debug + Clone + 'static> {
     freq: Real,
     amplitude: Real,
     num_outputs: usize,
+}
+
+impl<W: WaveSource + Debug + Clone> Dupe for Osc<W> {
+    fn dupe(&self) -> Option<Self> {
+        Some(self.clone())
+    }
 }
 
 impl<W: WaveSource + Debug + Clone + 'static> Osc<W> {
@@ -28,7 +35,7 @@ impl<W: WaveSource + Debug + Clone + 'static> Osc<W> {
     }
 }
 
-impl<W: WaveSource + Debug + Clone + 'static> AudioNodeCommon for Osc<W> {
+impl<W: WaveSource + Debug + Clone + 'static> AudioNode for Osc<W> {
     fn name(&self) -> &str {
         "@builtin:osc"
     }

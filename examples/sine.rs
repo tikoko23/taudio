@@ -6,8 +6,9 @@ use std::{
 
 use taudio::{
     buffer::SampleChannels,
+    dupe::Dupe,
     err::AudioError,
-    node::{AudioNodeCommon, AudioSink, AudioSinkCfg, AudioSinkInfo, SamplingContext},
+    node::{AudioNode, AudioSink, AudioSinkCfg, AudioSinkInfo, SamplingContext},
     pipeline::PipelineBuilder,
     sources::Osc,
     waveform,
@@ -18,14 +19,9 @@ struct FileSink {
     file: Option<BufWriter<File>>,
 }
 
-// This will be removed once non-clone nodes are implemented.
-impl Clone for FileSink {
-    fn clone(&self) -> Self {
-        panic!("FileSink may not be cloned")
-    }
-}
+impl Dupe for FileSink {}
 
-impl AudioNodeCommon for FileSink {
+impl AudioNode for FileSink {
     fn name(&self) -> &str {
         "@example:file-sink"
     }

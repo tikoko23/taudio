@@ -6,7 +6,7 @@ use crate::{
     id::IdContainer,
     incremental_id,
     node::{
-        AudioNodeCommon, AudioProcessor, AudioProcessorInfo, AudioSink, AudioSinkInfo, AudioSource,
+        AudioNode, AudioProcessor, AudioProcessorInfo, AudioSink, AudioSinkInfo, AudioSource,
         AudioSourceInfo, SamplingContext,
     },
 };
@@ -40,7 +40,7 @@ impl NodeId {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub(crate) enum PipelineAudioNode {
     Source {
         node: Box<dyn AudioSource>,
@@ -60,7 +60,7 @@ pub(crate) enum PipelineAudioNode {
 }
 
 impl PipelineAudioNode {
-    pub fn as_common(&self) -> &dyn AudioNodeCommon {
+    pub fn as_common(&self) -> &dyn AudioNode {
         match self {
             Self::Source { node, .. } => node.as_ref(),
             Self::Processor { node, .. } => node.as_ref(),
