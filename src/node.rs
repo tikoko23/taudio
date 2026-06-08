@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{any::Any, fmt::Debug};
 
 use crate::{Real, buffer::SampleChannels, err::AudioError};
 
@@ -6,19 +6,19 @@ macro_rules! boxed_dupe {
     ($($vis:vis trait $TraitName:ident for<dyn $DynName:path> { ... })*) => {
         $(
             $vis trait $TraitName {
-                fn boxed_dupe(&self) -> ::std::option::Option<::std::boxed::Box<dyn $DynName>>;
+                fn boxed_clone(&self) -> ::std::boxed::Box<dyn $DynName>;
             }
 
-            impl<T: 'static + $DynName + $crate::dupe::Dupe> $TraitName for T {
-                fn boxed_dupe(&self) -> ::std::option::Option<::std::boxed::Box<dyn $DynName>> {
-                    $crate::dupe::Dupe::dupe(self).map(|x| ::std::boxed::Box::new(x) as ::std::boxed::Box<dyn $DynName>)
+            impl<T: 'static + $DynName + ::core::clone::Clone> $TraitName for T {
+                fn boxed_clone(&self) -> ::std::boxed::Box<dyn $DynName> {
+                   ::std::boxed::Box::new(::core::clone::Clone::clone(self))
                 }
             }
 
-            impl $crate::dupe::Dupe for ::std::boxed::Box<dyn $DynName> {
+            impl ::core::clone::Clone for ::std::boxed::Box<dyn $DynName> {
                 #[inline]
-                fn dupe(&self) -> ::std::option::Option<Self> {
-                    $TraitName::boxed_dupe(self.as_ref())
+                fn clone(&self) -> Self {
+                    $TraitName::boxed_clone(self.as_ref())
                 }
             }
         )*
@@ -26,9 +26,9 @@ macro_rules! boxed_dupe {
 }
 
 boxed_dupe! {
-    pub trait AudioSourceDupe for<dyn AudioSource> { ... }
-    pub trait AudioSinkDupe for<dyn AudioSink> { ... }
-    pub trait AudioProcessorDupe for<dyn AudioProcessor> { ... }
+    pub trait AudioSourceClone for<dyn AudioSource> { ... }
+    pub trait AudioSinkClone for<dyn AudioSink> { ... }
+    pub trait AudioProcessorClone for<dyn AudioProcessor> { ... }
 }
 
 #[derive(Debug)]
@@ -93,13 +93,13 @@ impl SamplingContext {
     }
 }
 
-pub trait AudioNode: 'static + Debug {
+pub trait AudioNode: 'static + Any + Debug {
     fn name(&self) -> &str {
         "<unnamed node>"
     }
 }
 
-pub trait AudioSource: AudioSourceDupe + AudioNode {
+pub trait AudioSource: AudioSourceClone + AudioNode {
     fn setup(&mut self, cfg: &AudioSourceCfg) -> Result<AudioSourceInfo, AudioError>;
 
     fn sample(
@@ -107,9 +107,14 @@ pub trait AudioSource: AudioSourceDupe + AudioNode {
         ctx: &SamplingContext,
         output: &mut SampleChannels<'_>,
     ) -> Result<(), AudioError>;
+
+    #[inline]
+    fn finish(&mut self) -> Result<(), AudioError> {
+        Ok(())
+    }
 }
 
-pub trait AudioSink: AudioSinkDupe + AudioNode {
+pub trait AudioSink: AudioSinkClone + AudioNode {
     fn setup(&mut self, cfg: &AudioSinkCfg) -> Result<AudioSinkInfo, AudioError>;
 
     fn sample(
@@ -117,9 +122,14 @@ pub trait AudioSink: AudioSinkDupe + AudioNode {
         ctx: &SamplingContext,
         input: &SampleChannels<'_>,
     ) -> Result<(), AudioError>;
+
+    #[inline]
+    fn finish(&mut self) -> Result<(), AudioError> {
+        Ok(())
+    }
 }
 
-pub trait AudioProcessor: AudioProcessorDupe + AudioNode {
+pub trait AudioProcessor: AudioProcessorClone + AudioNode {
     fn setup(&mut self, cfg: &AudioProcessorCfg) -> Result<AudioProcessorInfo, AudioError>;
 
     /// The batch size of the input and the output are *guaranteed* to be the same.
@@ -129,4 +139,9 @@ pub trait AudioProcessor: AudioProcessorDupe + AudioNode {
         input: &SampleChannels<'_>,
         output: &mut SampleChannels<'_>,
     ) -> Result<(), AudioError>;
+
+    #[inline]
+    fn finish(&mut self) -> Result<(), AudioError> {
+        Ok(())
+    }
 }
