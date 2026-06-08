@@ -173,6 +173,11 @@ impl<T> IdContainer<Vec<T>> {
 
         I::from_index(new_idx)
     }
+
+    #[inline]
+    pub fn next_id<I: NumericId>(&self) -> I {
+        I::from_index(self.len())
+    }
 }
 
 #[cfg(test)]
