@@ -102,9 +102,12 @@ impl PipelineBuilder {
             sample_rate: self.opts.sample_rate.get(),
         })?;
 
+        let id = self.nodes.next_id();
+
         Ok(self.nodes.push_id(PipelineAudioNode::Source {
             node: src,
             src_info,
+            id,
         }))
     }
 
@@ -132,10 +135,13 @@ impl PipelineBuilder {
             num_inputs: inputs.len(),
         })?;
 
+        let id = self.nodes.next_id();
+
         Ok(self.nodes.push_id(PipelineAudioNode::Processor {
             node: proc,
             inputs,
             proc_info,
+            id,
         }))
     }
 
@@ -163,10 +169,13 @@ impl PipelineBuilder {
             sample_rate: self.opts.sample_rate.get(),
         })?;
 
+        let id = self.nodes.next_id();
+
         Ok(self.nodes.push_id(PipelineAudioNode::Sink {
             node: sink,
             inputs,
             sink_info,
+            id,
         }))
     }
 

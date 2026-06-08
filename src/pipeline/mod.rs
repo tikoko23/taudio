@@ -43,15 +43,18 @@ impl NodeId {
 #[derive(Debug, Clone)]
 pub(crate) enum PipelineAudioNode {
     Source {
+        id: NodeId,
         node: Box<dyn AudioSource>,
         src_info: AudioSourceInfo,
     },
     Processor {
+        id: NodeId,
         node: Box<dyn AudioProcessor>,
         inputs: Vec<NodeOutput>,
         proc_info: AudioProcessorInfo,
     },
     Sink {
+        id: NodeId,
         node: Box<dyn AudioSink>,
         inputs: Vec<NodeOutput>,
         #[allow(unused)]
@@ -160,20 +163,24 @@ impl Pipeline {
             };
 
             match node {
-                PipelineAudioNode::Source { node, src_info: _ } => {
-                    node.sample(&context, &mut output_buffers)?
-                }
+                PipelineAudioNode::Source {
+                    node,
+                    src_info: _,
+                    id: _,
+                } => node.sample(&context, &mut output_buffers)?,
 
                 PipelineAudioNode::Processor {
                     node,
                     inputs: _,
                     proc_info: _,
+                    id: _,
                 } => node.sample(&context, &input_buffers, &mut output_buffers)?,
 
                 PipelineAudioNode::Sink {
                     node,
                     inputs: _,
                     sink_info: _,
+                    id: _,
                 } => node.sample(&context, &input_buffers)?,
             }
         }
