@@ -1,6 +1,5 @@
 use taudio::{
     buffer::SampleChannels,
-    dupe::Dupe,
     err::AudioError,
     node::{
         AudioNode, AudioProcessor, AudioProcessorCfg, AudioProcessorInfo, AudioSink, AudioSinkCfg,
@@ -17,10 +16,6 @@ struct TestProcessor(usize, usize);
 
 #[derive(Debug, Clone)]
 struct TestSink(usize);
-
-impl Dupe for TestSource {}
-impl Dupe for TestProcessor {}
-impl Dupe for TestSink {}
 
 impl AudioNode for TestSource {
     fn name(&self) -> &str {

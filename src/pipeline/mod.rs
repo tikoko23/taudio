@@ -40,7 +40,7 @@ impl NodeId {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum PipelineAudioNode {
     Source {
         node: Box<dyn AudioSource>,

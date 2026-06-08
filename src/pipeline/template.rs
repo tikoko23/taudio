@@ -13,7 +13,7 @@ use crate::{
 
 /// Represents a pipeline graph which has been checked to be valid. [`Pipeline`] instances can be
 /// constructed using [`From`].
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PipelineTemplate {
     pub(crate) opts: PipelineOpts,
     pub(crate) topological_order: Vec<NodeId>,
@@ -249,7 +249,6 @@ fn assign_buffers(
 #[cfg(test)]
 mod test {
     use crate::{
-        dupe::Dupe,
         err::AudioError,
         id::NumericId,
         node::{
@@ -339,10 +338,6 @@ mod test {
             Ok(())
         }
     }
-
-    impl Dupe for TestSource {}
-    impl Dupe for TestProcessor {}
-    impl Dupe for TestSink {}
 
     macro_rules! bid {
         ($n:literal) => {
