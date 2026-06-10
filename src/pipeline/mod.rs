@@ -132,6 +132,20 @@ impl From<PipelineTemplate> for Pipeline {
 }
 
 impl Pipeline {
+    pub fn sources_mut(&mut self) -> impl Iterator<Item = (NodeId, &mut dyn AudioSource)> {
+        self.nodes.iter_mut().filter_map(|node| match node {
+            PipelineAudioNode::Source { node, id, .. } => Some((*id, node.as_mut())),
+            _ => None,
+        })
+    }
+
+    pub fn sinks(&self) -> impl Iterator<Item = (NodeId, &dyn AudioSink)> {
+        self.nodes.iter().filter_map(|node| match node {
+            PipelineAudioNode::Sink { id, node, .. } => Some((*id, node.as_ref())),
+            _ => None,
+        })
+    }
+
     /// # Panics
     /// Panics if the requested sample count is greater than the pipeline sample count.
     pub fn sample(&mut self, n_samples: u32) -> Result<(), AudioError> {
