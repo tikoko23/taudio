@@ -132,9 +132,9 @@ impl From<PipelineTemplate> for Pipeline {
 }
 
 impl Pipeline {
-    pub fn sources_mut(&mut self) -> impl Iterator<Item = (NodeId, &mut dyn AudioSource)> {
-        self.nodes.iter_mut().filter_map(|node| match node {
-            PipelineAudioNode::Source { node, id, .. } => Some((*id, node.as_mut())),
+    pub fn sources(&self) -> impl Iterator<Item = (NodeId, &dyn AudioSource)> {
+        self.nodes.iter().filter_map(|node| match node {
+            PipelineAudioNode::Source { node, id, .. } => Some((*id, node.as_ref())),
             _ => None,
         })
     }
@@ -142,6 +142,20 @@ impl Pipeline {
     pub fn sinks(&self) -> impl Iterator<Item = (NodeId, &dyn AudioSink)> {
         self.nodes.iter().filter_map(|node| match node {
             PipelineAudioNode::Sink { id, node, .. } => Some((*id, node.as_ref())),
+            _ => None,
+        })
+    }
+
+    pub fn sources_mut(&mut self) -> impl Iterator<Item = (NodeId, &mut dyn AudioSource)> {
+        self.nodes.iter_mut().filter_map(|node| match node {
+            PipelineAudioNode::Source { node, id, .. } => Some((*id, node.as_mut())),
+            _ => None,
+        })
+    }
+
+    pub fn sinks_mut(&mut self) -> impl Iterator<Item = (NodeId, &mut dyn AudioSink)> {
+        self.nodes.iter_mut().filter_map(|node| match node {
+            PipelineAudioNode::Sink { id, node, .. } => Some((*id, node.as_mut())),
             _ => None,
         })
     }
