@@ -3,8 +3,8 @@ use std::{error::Error, fs::File, io::BufWriter};
 use smallvec::smallvec;
 use taudio::{
     pipeline::PipelineBuilder,
-    sample::{self, Sample},
-    sinks::BufferedSink,
+    sample::{self},
+    sinks::SampleSink,
     sources::Osc,
     wav::{WavChunk, WavFile, WavFormat, WavFormatMeta},
     waveform,
@@ -16,7 +16,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut builder = PipelineBuilder::default();
 
     let osc_id = builder.add_source(osc)?;
-    let sink_id = builder.add_sink([osc_id.output(0)], BufferedSink::new())?;
+    let sink_id = builder.add_sink([osc_id.output(0)], SampleSink::new(sample::Int16))?;
 
     let mut pipeline = builder.build()?;
     pipeline.sample(44100)?;
@@ -28,7 +28,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             continue;
         }
 
-        if let Some(sink) = sink.downcast_mut::<BufferedSink>() {
+        if let Some(sink) = sink.downcast_mut::<SampleSink<sample::Int16>>() {
             data = Some(sink.take().next().unwrap());
         }
     }
@@ -41,15 +41,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             bits_per_sample: 16,
         };
 
-        let mut samples = vec![];
-
-        for sample in data {
-            let _ = sample::Int16.write(sample, &mut samples);
-        }
-
         let data_chunk = WavChunk {
             id: *b"data",
-            data: samples.into(),
+            data: data.into(),
         };
 
         let wav = WavFile {
