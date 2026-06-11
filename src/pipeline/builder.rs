@@ -9,6 +9,7 @@ use crate::{
     pipeline::{NodeId, Pipeline, PipelineAudioNode, PipelineTemplate},
 };
 
+/// Handle to a node's specific output channel.
 #[derive(Debug, Clone, Copy)]
 pub struct NodeOutput {
     pub(crate) node: NodeId,
