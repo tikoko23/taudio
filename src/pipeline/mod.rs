@@ -48,6 +48,7 @@ pub(crate) enum PipelineAudioNode {
         src_info: AudioSourceInfo,
     },
     Processor {
+        #[allow(unused)]
         id: NodeId,
         node: Box<dyn AudioProcessor>,
         inputs: Vec<NodeOutput>,
