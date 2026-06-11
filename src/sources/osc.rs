@@ -8,6 +8,15 @@ use crate::{
     waveform::WaveSource,
 };
 
+/// An oscillator which produces samples of a specific frequency and amplitude.
+///
+/// # Example
+/// ```
+/// # use taudio::sources::Osc;
+/// use taudio::waveform;
+///
+/// let osc = Osc::new(waveform::Sine, 440.0, 1.0, 1);
+/// ```
 #[derive(Debug, Clone)]
 pub struct Osc<W: WaveSource + Debug + Clone + 'static> {
     source: W,
