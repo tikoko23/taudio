@@ -45,11 +45,16 @@ pub trait Sample: sealed::Sealed {
     fn size_of(&self) -> usize;
 }
 
+/// Represents a [`Sample`] which has a non-changing type.
+pub trait TypedSample {
+    type Type: Sized + Clone + 'static;
+
+    fn into_typed(sample: Real) -> Self::Type;
+}
+
 impl Sample for Int8 {
     fn write(&self, sample: Real, w: &mut dyn Write) -> io::Result<()> {
-        let s = (sample * 127.0) as i8;
-
-        w.write_all(&s.to_le_bytes())
+        w.write_all(&Self::into_typed(sample).to_le_bytes())
     }
 
     #[inline]
@@ -60,9 +65,7 @@ impl Sample for Int8 {
 
 impl Sample for Int16 {
     fn write(&self, sample: Real, w: &mut dyn Write) -> io::Result<()> {
-        let s = (sample * 32767.0) as i16;
-
-        w.write_all(&s.to_le_bytes())
+        w.write_all(&Self::into_typed(sample).to_le_bytes())
     }
 
     #[inline]
@@ -73,9 +76,7 @@ impl Sample for Int16 {
 
 impl Sample for Int32 {
     fn write(&self, sample: Real, w: &mut dyn Write) -> io::Result<()> {
-        let s = (sample * 2147483647.0) as i32;
-
-        w.write_all(&s.to_le_bytes())
+        w.write_all(&Self::into_typed(sample).to_le_bytes())
     }
 
     #[inline]
@@ -86,9 +87,7 @@ impl Sample for Int32 {
 
 impl Sample for Float32 {
     fn write(&self, sample: Real, w: &mut dyn Write) -> io::Result<()> {
-        let s = sample as f32;
-
-        w.write_all(&s.to_le_bytes())
+        w.write_all(&Self::into_typed(sample).to_le_bytes())
     }
 
     #[inline]
@@ -114,5 +113,41 @@ impl Sample for Dyn {
             SampleType::Int32 => Int32.size_of(),
             SampleType::Float32 => Float32.size_of(),
         }
+    }
+}
+
+impl TypedSample for Int8 {
+    type Type = i8;
+
+    #[inline]
+    fn into_typed(sample: Real) -> i8 {
+        (sample * 127.0) as i8
+    }
+}
+
+impl TypedSample for Int16 {
+    type Type = i16;
+
+    #[inline]
+    fn into_typed(sample: Real) -> i16 {
+        (sample * 32767.0) as i16
+    }
+}
+
+impl TypedSample for Int32 {
+    type Type = i32;
+
+    #[inline]
+    fn into_typed(sample: Real) -> i32 {
+        (sample * 2147483647.0) as i32
+    }
+}
+
+impl TypedSample for Float32 {
+    type Type = f32;
+
+    #[inline]
+    fn into_typed(sample: Real) -> f32 {
+        sample as f32
     }
 }
