@@ -1,16 +1,16 @@
 use crate::Real;
 use std::io::{self, Write};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Int8;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Int16;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Int32;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Float32;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -26,9 +26,11 @@ pub enum SampleType {
 }
 
 mod sealed {
+    use std::fmt::Debug;
+
     use crate::sample::{Dyn, Float32, Int8, Int16, Int32};
 
-    pub trait Sealed: Sized {}
+    pub trait Sealed: Sized + Clone + Debug + 'static {}
 
     impl Sealed for Int8 {}
     impl Sealed for Int16 {}
