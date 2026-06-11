@@ -92,7 +92,7 @@ use std::cell::RefCell;
 use crate::{
     buffer::{AudioBuffer, SampleChannels},
     err::AudioError,
-    id::IdContainer,
+    id::{IdContainer, NumericId},
     incremental_id,
     node::{
         AudioNode, AudioProcessor, AudioProcessorInfo, AudioSink, AudioSinkInfo, AudioSource,
@@ -141,7 +141,6 @@ pub(crate) enum PipelineAudioNode {
         src_info: AudioSourceInfo,
     },
     Processor {
-        #[allow(unused)]
         id: NodeId,
         node: Box<dyn AudioProcessor>,
         inputs: Vec<NodeOutput>,
@@ -165,11 +164,27 @@ impl PipelineAudioNode {
         }
     }
 
+    pub fn as_common_mut(&mut self) -> &mut dyn AudioNode {
+        match self {
+            Self::Source { node, .. } => node.as_mut(),
+            Self::Processor { node, .. } => node.as_mut(),
+            Self::Sink { node, .. } => node.as_mut(),
+        }
+    }
+
     pub fn inputs(&self) -> &[NodeOutput] {
         match self {
             Self::Source { .. } => &[],
             Self::Processor { inputs, .. } => inputs,
             Self::Sink { inputs, .. } => inputs,
+        }
+    }
+
+    pub fn id(&self) -> NodeId {
+        match self {
+            Self::Source { id, .. } => *id,
+            Self::Processor { id, .. } => *id,
+            Self::Sink { id, .. } => *id,
         }
     }
 }
@@ -188,6 +203,7 @@ pub struct Pipeline {
     buffers: IdContainer<Vec<RefCell<AudioBuffer>>>,
     opts: PipelineOpts,
     nodes: Vec<PipelineAudioNode>,
+    id_to_node_index: IdContainer<Vec<usize>>,
     buffer_assignments: Vec<BufferAssignment>,
     output_bufs: Vec<BufferId>,
     current_sample_offset: u64,
@@ -211,11 +227,17 @@ impl From<PipelineTemplate> for Pipeline {
             .collect::<Vec<_>>()
             .into();
 
-        let ordered_nodes = template
+        let ordered_nodes: Vec<_> = template
             .topological_order
             .into_iter()
             .map(|id| unordered_nodes[id].take().unwrap())
             .collect();
+
+        let mut id_to_node_index = IdContainer::new(vec![usize::MAX; unordered_nodes.len()]);
+
+        for (i, node) in ordered_nodes.iter().enumerate() {
+            id_to_node_index[node.id()] = i;
+        }
 
         Self {
             opts: template.opts,
@@ -223,6 +245,7 @@ impl From<PipelineTemplate> for Pipeline {
             output_bufs: vec![],
             nodes: ordered_nodes,
             current_sample_offset: 0,
+            id_to_node_index,
             buffers,
         }
     }
@@ -255,6 +278,72 @@ impl Pipeline {
             PipelineAudioNode::Sink { id, node, .. } => Some((*id, node.as_mut())),
             _ => None,
         })
+    }
+
+    pub fn get_node(&self, id: NodeId) -> Option<&dyn AudioNode> {
+        let idx = *self.id_to_node_index.get(id.as_index())?;
+
+        Some(self.nodes[idx].as_common())
+    }
+
+    pub fn get_node_mut(&mut self, id: NodeId) -> Option<&mut dyn AudioNode> {
+        let idx = *self.id_to_node_index.get(id.as_index())?;
+
+        Some(self.nodes[idx].as_common_mut())
+    }
+
+    pub fn get_source(&self, id: NodeId) -> Option<&dyn AudioSource> {
+        let idx = *self.id_to_node_index.get(id.as_index())?;
+
+        match &self.nodes[idx] {
+            PipelineAudioNode::Source { node, .. } => Some(node.as_ref()),
+            _ => None,
+        }
+    }
+
+    pub fn get_source_mut(&mut self, id: NodeId) -> Option<&mut dyn AudioSource> {
+        let idx = *self.id_to_node_index.get(id.as_index())?;
+
+        match &mut self.nodes[idx] {
+            PipelineAudioNode::Source { node, .. } => Some(node.as_mut()),
+            _ => None,
+        }
+    }
+
+    pub fn get_processor(&self, id: NodeId) -> Option<&dyn AudioProcessor> {
+        let idx = *self.id_to_node_index.get(id.as_index())?;
+
+        match &self.nodes[idx] {
+            PipelineAudioNode::Processor { node, .. } => Some(node.as_ref()),
+            _ => None,
+        }
+    }
+
+    pub fn get_processor_mut(&mut self, id: NodeId) -> Option<&mut dyn AudioProcessor> {
+        let idx = *self.id_to_node_index.get(id.as_index())?;
+
+        match &mut self.nodes[idx] {
+            PipelineAudioNode::Processor { node, .. } => Some(node.as_mut()),
+            _ => None,
+        }
+    }
+
+    pub fn get_sink(&self, id: NodeId) -> Option<&dyn AudioSink> {
+        let idx = *self.id_to_node_index.get(id.as_index())?;
+
+        match &self.nodes[idx] {
+            PipelineAudioNode::Sink { node, .. } => Some(node.as_ref()),
+            _ => None,
+        }
+    }
+
+    pub fn get_sink_mut(&mut self, id: NodeId) -> Option<&mut dyn AudioSink> {
+        let idx = *self.id_to_node_index.get(id.as_index())?;
+
+        match &mut self.nodes[idx] {
+            PipelineAudioNode::Sink { node, .. } => Some(node.as_mut()),
+            _ => None,
+        }
     }
 
     /// # Panics

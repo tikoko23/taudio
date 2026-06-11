@@ -21,19 +21,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut pipeline = builder.build()?;
     pipeline.sample(44100)?;
 
-    let mut data = None;
+    let sink = pipeline
+        .get_sink_mut(sink_id)
+        .and_then(|x| x.downcast_mut::<SampleSink<sample::Int16>>());
 
-    for (id, sink) in pipeline.sinks_mut() {
-        if id != sink_id {
-            continue;
-        }
-
-        if let Some(sink) = sink.downcast_mut::<SampleSink<sample::Int16>>() {
-            data = Some(sink.take().next().unwrap());
-        }
-    }
-
-    if let Some(data) = data {
+    if let Some(data) = sink.and_then(|s| s.take().next()) {
         let meta = WavFormatMeta {
             sample_rate: 44100,
             audio_format: WavFormat::Pcm,
