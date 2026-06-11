@@ -41,6 +41,8 @@ mod sealed {
 
 pub trait Sample: sealed::Sealed {
     fn write(&self, sample: Real, w: &mut dyn Write) -> io::Result<()>;
+
+    fn size_of(&self) -> usize;
 }
 
 impl Sample for Int8 {
@@ -48,6 +50,11 @@ impl Sample for Int8 {
         let s = (sample * 127.0) as i8;
 
         w.write_all(&s.to_le_bytes())
+    }
+
+    #[inline]
+    fn size_of(&self) -> usize {
+        std::mem::size_of::<i8>()
     }
 }
 
@@ -57,6 +64,11 @@ impl Sample for Int16 {
 
         w.write_all(&s.to_le_bytes())
     }
+
+    #[inline]
+    fn size_of(&self) -> usize {
+        std::mem::size_of::<i16>()
+    }
 }
 
 impl Sample for Int32 {
@@ -65,6 +77,11 @@ impl Sample for Int32 {
 
         w.write_all(&s.to_le_bytes())
     }
+
+    #[inline]
+    fn size_of(&self) -> usize {
+        std::mem::size_of::<i32>()
+    }
 }
 
 impl Sample for Float32 {
@@ -72,6 +89,11 @@ impl Sample for Float32 {
         let s = sample as f32;
 
         w.write_all(&s.to_le_bytes())
+    }
+
+    #[inline]
+    fn size_of(&self) -> usize {
+        std::mem::size_of::<f32>()
     }
 }
 
@@ -82,6 +104,15 @@ impl Sample for Dyn {
             SampleType::Int16 => Int16::write(&Int16, sample, w),
             SampleType::Int32 => Int32::write(&Int32, sample, w),
             SampleType::Float32 => Float32::write(&Float32, sample, w),
+        }
+    }
+
+    fn size_of(&self) -> usize {
+        match self.0 {
+            SampleType::Int8 => Int8.size_of(),
+            SampleType::Int16 => Int16.size_of(),
+            SampleType::Int32 => Int32.size_of(),
+            SampleType::Float32 => Float32.size_of(),
         }
     }
 }
