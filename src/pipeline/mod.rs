@@ -1,3 +1,92 @@
+//! Graph based audio processing pipelines.
+//!
+//! # The Pipeline
+//!
+//! The [`Pipeline`] type acts as the _recipe_ to create outputs from a list of inputs, and is thus
+//! immutable once created. To change options which do not affect the pipeline's layout,
+//! [`PipelineTemplate`]s can be used.
+//!
+//! # Graph Representation
+//!
+//! An atomic unit of producing and processing audio samples is represented as a _node_.
+//! Built-in audio sources (producers), and audio sinks (consumers) can be found
+//! [here](crate::sources) and [here](crate::sinks).
+//!
+//! Every node can have 0 or more input and output _channels_. A channel is an independent array of
+//! samples provided for the node to read from or write into. It can be thought as a plug coming
+//! into or out of a node.
+//!
+//! The graph representation lets the user of this module to express which inputs of which nodes
+//! belong to which outputs of which nodes (i.e. connects nodes together via the plugs).
+//!
+//! A node in a [`Pipeline`] or a [`PipelineBuilder`] can be referenced by a [`NodeId`].
+//! Such handles are returned from builder's functions.
+//!
+//! An output channel of a node in a [`PipelineBuilder`] can be referenced using a [`NodeOutput`].
+//! A node output can be constructed with [`NodeId::output`].
+//!
+//! # Sources, Processors and Sinks
+//!
+//! A node which has no inputs, but multiple outputs is modeled as a _source_. Such nodes will
+//! implement [`AudioSource`].
+//!
+//! A node which has multiple inputs and multiple outputs (possibly different amounts) is modeled
+//! as a _processor_. Such nodes will implement [`AudioProcessor`].
+//!
+//! A node which has multiple inputs but no outputs is modeled as a _sink_. Such nodes will
+//! implement [`AudioSink`].
+//!
+//! # Example
+//!
+//! This section will guide you through synthesizing a sine wave and reading the samples
+//! using a pipeline.
+//!
+//! We will use an [`Osc`] to sample a sine wave, and a [`SampleSink`] to create 16-bit samples.
+//!
+//! ```
+//! # fn main() -> Result<(), taudio::err::AudioError> {
+//! use taudio::{
+//!     sources::Osc,
+//!     sinks::SampleSink,
+//!     waveform,
+//!     sample,
+//!     pipeline::PipelineBuilder,
+//! };
+//!
+//! let oscillator = Osc::new(waveform::Sine, 440.0, 1.0, 1);
+//! let sample_sink = SampleSink::new(sample::Int16);
+//!
+//! let mut builder = PipelineBuilder::default();
+//!
+//! let osc_id = builder.add_source(oscillator)?;
+//! let sink_id = builder.add_sink([osc_id.output(0)], sample_sink)?;
+//!
+//! let mut pipeline = builder.build()?;
+//!
+//! // Sample one second worth of audio.
+//! pipeline.sample(44100)?;
+//!
+//! let sink: &mut SampleSink<sample::Int16> = pipeline
+//!     .sinks_mut()
+//!     .filter(|&(id, _)| id == sink_id)
+//!     .map(|(_, sink)| sink)
+//!     .next()
+//!     .and_then(|s| s.downcast_mut())
+//!     .unwrap();
+//!
+//! // Get the first channel.
+//! let data = sink.take().next().unwrap();
+//!
+//! // ...
+//! let _ = data;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//!
+//! [`Osc`]: crate::sources::Osc
+//! [`SampleSink`]: crate::sinks::SampleSink
+
 use std::cell::RefCell;
 
 use crate::{
