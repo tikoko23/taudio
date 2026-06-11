@@ -15,7 +15,12 @@ pub struct NodeOutput {
     pub(crate) output_index: u32,
 }
 
+/// Defines how a value must be converted to a list of [`NodeOutput`]s.
+///
+/// The returned value is owned because the [`PipelineBuilder`] needs to own them.
+/// This prevents redundant clones and allocations in some cases (see the [`NodeInputs`] implementation for [`Vec`]).
 pub trait NodeInputs {
+    /// Converts the type into a list of node ouputs.
     fn get_inputs(self) -> Vec<NodeOutput>;
 }
 
@@ -47,6 +52,9 @@ impl<const N: usize> NodeInputs for &[NodeOutput; N] {
     }
 }
 
+/// Represents the configurable aspects which don't depend on the nodes of a pipeline.
+///
+/// See [`PipelineTemplate`] to learn why this was created.
 #[derive(Debug, Clone, Copy)]
 #[non_exhaustive]
 pub struct PipelineOpts {
@@ -78,9 +86,6 @@ impl Default for PipelineBuilder {
 }
 
 impl PipelineBuilder {
-    /// # Panics
-    /// Panics if the sample rate in the pipeline options is invalid, see
-    /// [`PipelineOpts::is_valid_sample_rate`].
     #[inline]
     pub fn new(opts: PipelineOpts) -> Self {
         Self {
@@ -89,6 +94,10 @@ impl PipelineBuilder {
         }
     }
 
+    /// Adds a source to the pipeline.
+    ///
+    /// Consider using [`PipelineBuilder::add_source_boxed`] if your source is already heap-allocated,
+    /// or is a trait object.
     #[inline]
     pub fn add_source<S: AudioSource>(&mut self, src: S) -> Result<NodeId, AudioError> {
         self.add_source_boxed(Box::new(src))
@@ -111,6 +120,10 @@ impl PipelineBuilder {
         }))
     }
 
+    /// Adds a processor to the pipeline.
+    ///
+    /// Consider using [`PipelineBuilder::add_processor_boxed`] if your processor is already heap-allocated,
+    /// or is a trait object.
     #[inline]
     pub fn add_processor<V, P>(&mut self, inputs: V, proc: P) -> Result<NodeId, AudioError>
     where
@@ -145,6 +158,10 @@ impl PipelineBuilder {
         }))
     }
 
+    /// Adds a sink to the pipeline.
+    ///
+    /// Consider using [`PipelineBuilder::add_sink_boxed`] if your sink is already heap-allocated,
+    /// or is a trait object.
     #[inline]
     pub fn add_sink<V, S>(&mut self, inputs: V, sink: S) -> Result<NodeId, AudioError>
     where
@@ -179,6 +196,8 @@ impl PipelineBuilder {
         }))
     }
 
+    /// Converts this builder into a template which can be reinstantiated multiple times
+    /// with different [`PipelineOpts`].
     #[inline]
     pub fn into_template(self) -> Result<PipelineTemplate, AudioError> {
         self.try_into()

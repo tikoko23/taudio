@@ -13,6 +13,8 @@ use crate::{
 
 /// Represents a pipeline graph which has been checked to be valid. [`Pipeline`] instances can be
 /// constructed using [`From`].
+///
+/// This allows reusing the same pipeline structure with different [`PipelineOpts`].
 #[derive(Debug, Clone)]
 pub struct PipelineTemplate {
     pub(crate) opts: PipelineOpts,
@@ -28,6 +30,10 @@ impl PipelineTemplate {
         b.try_into()
     }
 
+    /// Constructs a pipeline from this template.
+    ///
+    /// If you want to reuse the template, consider calling [`PipelineTemplate::construct`]
+    /// on a [`Clone`]d value
     #[inline]
     pub fn construct(self) -> Pipeline {
         self.into()

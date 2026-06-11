@@ -20,6 +20,9 @@ use smallvec::SmallVec;
 pub use template::*;
 
 incremental_id! {
+    /// Handle to a node in a [`Pipeline`].
+    ///
+    /// Reference the outputs of this node with [`NodeId::output`].
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
     #[repr(transparent)]
     pub struct NodeId(u32) impl { NumericId };
@@ -32,6 +35,7 @@ incremental_id! {
 }
 
 impl NodeId {
+    /// Returns a handle for the given output of a node.
     pub fn output(self, n: u32) -> NodeOutput {
         NodeOutput {
             node: self,
@@ -87,6 +91,9 @@ pub(crate) struct BufferAssignment {
     pub(crate) outputs: SmallVec<[BufferId; 16]>,
 }
 
+/// Represents a complete, instantiated and ready to use audio processing pipeline.
+///
+/// [`PipelineBuilder`] can be used to create [`Pipeline`]s.
 #[derive(Debug)]
 pub struct Pipeline {
     buffers: IdContainer<Vec<RefCell<AudioBuffer>>>,
