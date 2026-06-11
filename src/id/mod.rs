@@ -20,6 +20,7 @@ pub trait NumericId: IncrementalId {
     fn from_index(index: usize) -> Self;
 }
 
+/// Continuously yields incremental ids in the order [`IncrementalId::next`] provides them.
 #[derive(Debug, Clone)]
 pub struct IdSequence<I: IncrementalId> {
     next: I,
