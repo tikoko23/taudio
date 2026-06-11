@@ -22,6 +22,11 @@ impl<S: Sample> SampleSink<S> {
         }
     }
 
+    #[inline]
+    pub fn get_sample(&self) -> &S {
+        &self.sample
+    }
+
     /// Visits each buffer, calls the callback with the stored samples and clears the buffer after.
     pub fn visit<F>(&mut self, mut cb: F)
     where
@@ -55,8 +60,10 @@ impl<S: Sample> AudioSink for SampleSink<S> {
         self.buffers.clear();
 
         for _ in 0..cfg.num_inputs {
-            self.buffers
-                .push(Vec::with_capacity(cfg.sample_rate as usize * 8));
+            // 8 seconds of sample capacity.
+            let cap = cfg.sample_rate as usize * 8 * self.sample.size_of();
+
+            self.buffers.push(Vec::with_capacity(cap));
         }
 
         Ok(AudioSinkInfo {})
