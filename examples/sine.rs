@@ -11,7 +11,7 @@ use taudio::{
 };
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let osc = Osc::new(waveform::Sine, 1.0, 1.0, 1);
+    let osc = Osc::new(waveform::Sine, 440.0, 1.0, 1);
 
     let mut builder = PipelineBuilder::default();
 
