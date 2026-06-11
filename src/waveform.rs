@@ -1,18 +1,29 @@
 use crate::{Real, consts::TAU};
 
+/// A wave source which can be sampled at an arbitrary time position and frequency.
 pub trait WaveSource {
+    /// Samples at the given time point with the provided frequency.
     fn sample(&mut self, freq: Real, time: Real) -> Real;
 }
 
+/// A sine wave.
 #[derive(Debug, Clone, Copy)]
 pub struct Sine;
 
+/// A triangle wave.
 #[derive(Debug, Clone, Copy)]
 pub struct Triangle;
 
+/// A square wave.
+///
+/// Note that unlike other built-in waves, this wave *does not* output 0 when sampled at 0
+/// because a perfect square wave has no 0 points.
 #[derive(Debug, Clone, Copy)]
 pub struct Square;
 
+/// A saw wave.
+///
+/// Note that just like other built-in waves, this wave outputs 0 when sampled at 0.
 #[derive(Debug, Clone, Copy)]
 pub struct Saw;
 

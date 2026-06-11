@@ -3,13 +3,18 @@ use std::io::{self, Write};
 use bytes::Bytes;
 use smallvec::SmallVec;
 
+/// The format of samples used by a wave file.
+///
+/// More formats may be introduced in the future.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(u16)]
+#[non_exhaustive]
 pub enum WavFormat {
     Pcm = 1,
     Float = 3,
 }
 
+/// Metadata of a wave file's `fmt ` chunk.
 #[derive(Debug, Clone)]
 pub struct WavFormatMeta {
     pub audio_format: WavFormat,
@@ -18,6 +23,7 @@ pub struct WavFormatMeta {
     pub bits_per_sample: u16,
 }
 
+/// A single chunk of a wave file.
 #[derive(Debug, Clone)]
 pub struct WavChunk {
     pub id: [u8; 4],
@@ -25,6 +31,8 @@ pub struct WavChunk {
 }
 
 impl WavChunk {
+    /// Constructs a new [`WavChunk`] whose id is `fmt ` and data is
+    /// derived from the given metadata value.
     pub fn new_format(meta: &WavFormatMeta) -> Self {
         const FORMAT_CHUNK_DATA_SIZE: usize = 16;
 
@@ -50,6 +58,10 @@ impl WavChunk {
         }
     }
 
+    /// Writes the wave chunk into the provided stream.
+    ///
+    /// # Panics
+    /// This function will panic if the data's length doesn't fit in a [`u32`].
     pub fn write(&self, w: &mut dyn Write) -> io::Result<()> {
         let chunk_size: u32 = self.data.len().try_into().expect("chunk too big");
 
@@ -61,12 +73,17 @@ impl WavChunk {
     }
 }
 
+/// Represents a wave file split up into its chunks.
 #[derive(Debug, Clone)]
 pub struct WavFile {
     pub chunks: SmallVec<[WavChunk; 4]>,
 }
 
 impl WavFile {
+    /// Writes the wave file into the provided stream.
+    ///
+    /// # Panics
+    /// This function will panic if the chunks' total size doesn't fit in a [`u32`].
     pub fn write(&self, w: &mut dyn Write) -> io::Result<()> {
         const CHUNK_META_SIZE: usize = 8;
 

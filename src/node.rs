@@ -157,14 +157,23 @@ pub trait AudioNode: 'static + AudioNodeReflection + Debug {
 }
 
 pub trait AudioSource: AudioSourceClone + AudioNode {
+    /// Initialization.
+    ///
+    /// Called once at the start of the node's lifetime.
     fn setup(&mut self, cfg: &AudioSourceCfg) -> Result<AudioSourceInfo, AudioError>;
 
+    /// Sampling.
+    ///
+    /// Called repeatedly whenever samples are requested by the owning pipeline.
     fn sample(
         &mut self,
         ctx: &SamplingContext,
         output: &mut SampleChannels<'_>,
     ) -> Result<(), AudioError>;
 
+    /// Deinitialization.
+    ///
+    /// Called at the end of the node's lifetime before it's dropped.
     #[inline]
     fn finish(&mut self) -> Result<(), AudioError> {
         Ok(())
@@ -172,14 +181,23 @@ pub trait AudioSource: AudioSourceClone + AudioNode {
 }
 
 pub trait AudioSink: AudioSinkClone + AudioNode {
+    /// Initialization.
+    ///
+    /// Called once at the start of the node's lifetime.
     fn setup(&mut self, cfg: &AudioSinkCfg) -> Result<AudioSinkInfo, AudioError>;
 
+    /// Sampling.
+    ///
+    /// Called repeatedly whenever samples are requested by the owning pipeline.
     fn sample(
         &mut self,
         ctx: &SamplingContext,
         input: &SampleChannels<'_>,
     ) -> Result<(), AudioError>;
 
+    /// Deinitialization.
+    ///
+    /// Called at the end of the node's lifetime before it's dropped.
     #[inline]
     fn finish(&mut self) -> Result<(), AudioError> {
         Ok(())
@@ -187,8 +205,15 @@ pub trait AudioSink: AudioSinkClone + AudioNode {
 }
 
 pub trait AudioProcessor: AudioProcessorClone + AudioNode {
+    /// Initialization.
+    ///
+    /// Called once at the start of the node's lifetime.
     fn setup(&mut self, cfg: &AudioProcessorCfg) -> Result<AudioProcessorInfo, AudioError>;
 
+    /// Sampling.
+    ///
+    /// Called repeatedly whenever samples are requested by the owning pipeline.
+    ///
     /// The batch size of the input and the output are *guaranteed* to be the same.
     fn sample(
         &mut self,
@@ -197,6 +222,9 @@ pub trait AudioProcessor: AudioProcessorClone + AudioNode {
         output: &mut SampleChannels<'_>,
     ) -> Result<(), AudioError>;
 
+    /// Deinitialization.
+    ///
+    /// Called at the end of the node's lifetime before it's dropped.
     #[inline]
     fn finish(&mut self) -> Result<(), AudioError> {
         Ok(())

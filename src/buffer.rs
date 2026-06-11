@@ -17,7 +17,7 @@ impl AudioBuffer {
         Self(vec![0.0; sample_count].into_boxed_slice())
     }
 
-    /// Allocates a buffer whose sample countents are uninitialized.
+    /// Allocates a buffer whose sample contents are uninitialized.
     ///
     /// # Safety
     /// The caller must handle uninitialized data properly.

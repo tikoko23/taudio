@@ -76,6 +76,7 @@ impl AudioError {
         unreachable!("all of the above must catch any number")
     }
 
+    /// Constructs a new [`AudioError::Boxed`] from the given error.
     pub fn boxed<E: Error + 'static>(err: E) -> Self {
         Self::Boxed(Box::new(err))
     }

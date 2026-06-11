@@ -1,18 +1,23 @@
 use crate::Real;
 use std::io::{self, Write};
 
+/// Little-endian, 8 bit signed integer sample.
 #[derive(Debug, Clone, Copy)]
 pub struct Int8;
 
+/// Little-endian, 16 bit signed integer sample.
 #[derive(Debug, Clone, Copy)]
 pub struct Int16;
 
+/// Little-endian, 32 bit signed integer sample.
 #[derive(Debug, Clone, Copy)]
 pub struct Int32;
 
+/// Little-endian, 32 bit floating point sample.
 #[derive(Debug, Clone, Copy)]
 pub struct Float32;
 
+/// Runtime determined sample.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Dyn(pub SampleType);
 
@@ -42,6 +47,7 @@ mod sealed {
 pub trait Sample: sealed::Sealed {
     fn write(&self, sample: Real, w: &mut dyn Write) -> io::Result<()>;
 
+    /// Returns the number of bytes that [`Sample::write`] would write.
     fn size_of(&self) -> usize;
 }
 
