@@ -58,6 +58,14 @@ impl WavChunk {
         }
     }
 
+    #[inline]
+    pub fn new_data(data: impl Into<Bytes>) -> Self {
+        Self {
+            id: *b"data",
+            data: data.into(),
+        }
+    }
+
     /// Writes the wave chunk into the provided stream.
     ///
     /// # Panics
