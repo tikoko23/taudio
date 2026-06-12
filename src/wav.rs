@@ -89,7 +89,7 @@ impl<'a> WavChunk<'a> {
     /// If the inner [`Cow`] is [`Cow::Owned`], this is a no-op.
     /// If the inner [`Cow`] is [`Cow::Borrowed`], it's cloned into a [`Cow::Owned`]
     #[inline]
-    pub fn into_static(self) -> WavChunk<'static> {
+    pub fn into_owned(self) -> WavChunk<'static> {
         WavChunk {
             data: Cow::Owned(self.data.into_owned()),
             id: self.id,
@@ -100,7 +100,7 @@ impl<'a> WavChunk<'a> {
     ///
     /// This will fail if the internal [`Cow`] pointer is [`Cow::Borrowed`].
     /// In the case of failure, the original chunk is returned via the [`Err`] variant.
-    pub fn try_into_static(self) -> Result<WavChunk<'static>, Self> {
+    pub fn try_into_owned(self) -> Result<WavChunk<'static>, Self> {
         match self.data {
             Cow::Borrowed(_) => Err(self),
             Cow::Owned(data) => Ok(WavChunk::<'static> {
@@ -159,7 +159,7 @@ impl WavFile<'_> {
             chunks: self
                 .chunks
                 .into_iter()
-                .map(|chunk| chunk.into_static())
+                .map(|chunk| chunk.into_owned())
                 .collect(),
         }
     }
