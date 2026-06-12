@@ -1,6 +1,7 @@
 use std::{
     borrow::Cow,
     io::{self, Write},
+    ops::{Deref, DerefMut},
 };
 
 use smallvec::SmallVec;
@@ -128,10 +129,47 @@ impl<'a> WavChunk<'a> {
 /// new file instances with static lifetimes, which own all their data.
 #[derive(Debug, Clone)]
 pub struct WavFile<'a> {
-    pub chunks: SmallVec<[WavChunk<'a>; 4]>,
+    chunks: SmallVec<[WavChunk<'a>; 4]>,
 }
 
-impl WavFile<'_> {
+impl<'a> Deref for WavFile<'a> {
+    type Target = [WavChunk<'a>];
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self.chunks
+    }
+}
+
+impl DerefMut for WavFile<'_> {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.chunks
+    }
+}
+
+impl<'a> FromIterator<WavChunk<'a>> for WavFile<'a> {
+    #[inline]
+    fn from_iter<T>(iter: T) -> Self
+    where
+        T: IntoIterator<Item = WavChunk<'a>>,
+    {
+        Self::from_chunks(iter)
+    }
+}
+
+impl<'a> WavFile<'a> {
+    #[inline]
+    pub fn from_chunks(it: impl IntoIterator<Item = WavChunk<'a>>) -> Self {
+        Self {
+            chunks: it.into_iter().collect(),
+        }
+    }
+
+    pub fn into_chunks(self) -> Vec<WavChunk<'a>> {
+        self.chunks.into_vec()
+    }
+
     /// Writes the wave file into the provided stream.
     ///
     /// # Panics
