@@ -1,7 +1,9 @@
 use std::{
     borrow::Cow,
-    io::{self, Write},
+    fs::File,
+    io::{self, BufWriter, Write},
     ops::{Deref, DerefMut},
+    path::Path,
 };
 
 use smallvec::SmallVec;
@@ -225,4 +227,128 @@ impl<'a> WavFile<'a> {
             Ok(self.into_owned())
         }
     }
+}
+
+pub trait WavSample: bytemuck::Pod {
+    const BITS_PER_SAMPLE: u16;
+    const WAV_FORMAT: WavFormat;
+
+    fn write_le<W: Write>(&self, w: &mut W) -> std::io::Result<()>;
+}
+
+macro_rules! impl_wav_sample {
+    ($(($T:ty, $format:ident)),* $(,)?) => {
+        $(
+            impl WavSample for $T {
+                const BITS_PER_SAMPLE: u16 = std::mem::size_of::<$T>() as u16 * 8;
+                const WAV_FORMAT: WavFormat = WavFormat::$format;
+
+                fn write_le<W: Write>(&self, w: &mut W) -> std::io::Result<()> {
+                    w.write_all(&self.to_le_bytes())
+                }
+            }
+        )*
+    };
+}
+
+impl_wav_sample! {
+    (i8, Pcm),
+    (i16, Pcm),
+    (i32, Pcm),
+    (f32, Float),
+}
+
+/// # Safety
+/// Calling this function with an empty slice is a logic error.
+/// Calling this function with slices of different lengths is a logic error.
+unsafe fn flatten_channels<S: WavSample>(channels: &[&[S]]) -> Vec<u8> {
+    let num_samples: usize = channels.len() * channels[0].len();
+    let bytes_per_sample = S::BITS_PER_SAMPLE as usize / 8;
+
+    let mut buffer = Vec::with_capacity(num_samples * bytes_per_sample);
+
+    for t in 0..channels[0].len() {
+        for chan in channels {
+            let sample = chan[t];
+
+            // Writes to Vec are infallible.
+            let _ = sample.write_le(&mut buffer);
+        }
+    }
+
+    buffer
+}
+
+/// Dumps samples directly into a wave file.
+///
+/// For finer control over wave serialization, [`WavFile`] or [`WavChunk`] primitives
+/// can be used.
+///
+/// This function will not allocate any memory for the samples if the host machine
+/// is little-endian and there is only one channel (mono audio).
+///
+/// If you already allocate your own data, consider using [`WavFile::write`] or
+/// [`WavChunk::write`] for a no-alloc solution.
+///
+/// # Panics
+/// This function will panic if the channel iterator:
+///   - Yields no elements (i.e. is empty).
+///   - Yields more than 65535 elements.
+///   - Yields slices with different lengths.
+pub fn dump<'a, S, T, P>(filename: P, sample_rate: u32, channels: T) -> std::io::Result<()>
+where
+    P: AsRef<Path>,
+    S: WavSample,
+    T: IntoIterator<Item = &'a [S]>,
+{
+    let channels: SmallVec<[_; 2]> = channels.into_iter().collect();
+
+    assert!(
+        !channels.is_empty(),
+        "at least one channel must be provided"
+    );
+
+    assert!(
+        channels.len() <= 65535,
+        "too many channels provided (got {}, max is 65535)",
+        channels.len()
+    );
+
+    let channel_len = channels[0].len();
+    let all_same_length = channels[1..]
+        .iter()
+        .copied()
+        .all(|x| x.len() == channel_len);
+
+    assert!(all_same_length, "channels must have the same length");
+
+    let data = match channels.as_slice() {
+        #[cfg(target_endian = "little")]
+        &[x] => {
+            let bytes = bytemuck::cast_slice(x);
+            WavChunk::new_data(bytes)
+        }
+        xs => {
+            let bytes = unsafe { flatten_channels(xs) };
+            WavChunk::new_data(bytes)
+        }
+    };
+
+    let fmt = WavFormatMeta {
+        audio_format: S::WAV_FORMAT,
+        bits_per_sample: S::BITS_PER_SAMPLE,
+        num_channels: channels.len() as u16,
+        sample_rate,
+    };
+
+    let fmt = WavChunk::new_format(&fmt);
+    let wav = WavFile::from_chunks([fmt, data]);
+
+    let file = File::create(filename.as_ref())?;
+    let mut writer = BufWriter::new(file);
+
+    wav.write(&mut writer)?;
+    writer.flush()?;
+
+    Ok(())
 }
