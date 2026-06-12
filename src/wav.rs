@@ -26,6 +26,10 @@ pub struct WavFormatMeta {
 }
 
 /// A single chunk of a wave file.
+///
+/// This type can represent borrowed and owned binary data.
+/// [`WavChunk::try_into_owned`] and [`WavChunk::into_owned`] can be used to create
+/// new chukns with static lifetimes, which own their data.
 #[derive(Debug, Clone)]
 pub struct WavChunk<'a> {
     pub id: [u8; 4],
@@ -118,6 +122,10 @@ impl<'a> WavChunk<'a> {
 }
 
 /// Represents a wave file split up into its chunks.
+///
+/// Chunks may borrow data, as indicated by the lifetime.
+/// [`WavFile::try_into_owned`] and [`WavFile::into_owned`] can be used to create
+/// new file instances with static lifetimes, which own all their data.
 #[derive(Debug, Clone)]
 pub struct WavFile<'a> {
     pub chunks: SmallVec<[WavChunk<'a>; 4]>,
