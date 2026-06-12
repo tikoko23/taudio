@@ -14,10 +14,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
 
     let fmt_chunk = WavChunk::new_format(&meta);
-    let data_chunk = WavChunk {
-        id: *b"data",
-        data: samples.to_vec().into(),
-    };
+    let data_chunk = WavChunk::new_data(samples.to_vec());
 
     let wav = WavFile {
         chunks: smallvec![fmt_chunk, data_chunk],

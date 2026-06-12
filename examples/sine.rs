@@ -33,13 +33,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             bits_per_sample: 16,
         };
 
-        let data_chunk = WavChunk {
-            id: *b"data",
-            data: data.into(),
-        };
-
         let wav = WavFile {
-            chunks: smallvec![WavChunk::new_format(&meta), data_chunk],
+            chunks: smallvec![WavChunk::new_format(&meta), WavChunk::new_data(data)],
         };
 
         let file = File::create("sine440hz.wav")?;
