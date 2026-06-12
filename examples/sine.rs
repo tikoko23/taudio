@@ -25,7 +25,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .get_sink_mut(sink_id)
         .and_then(|x| x.downcast_mut::<SampleSink<sample::Int16>>());
 
-    if let Some(data) = sink.and_then(|s| s.take().next()) {
+    if let Some(data) = sink.map(|s| s.take_channel(0)) {
         let meta = WavFormatMeta {
             sample_rate: 44100,
             audio_format: WavFormat::Pcm,
