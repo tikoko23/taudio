@@ -34,6 +34,11 @@ impl<T: Clone> ChannelBuffers<T> {
         self.buffers[channel].extend_from_slice(data);
     }
 
+    #[inline]
+    pub(crate) fn get_buffer_mut(&mut self, channel: usize) -> &mut Vec<T> {
+        &mut self.buffers[channel]
+    }
+
     /// Visits each buffer, calls the callback with the stored samples and clears the buffer after.
     pub fn visit<F>(&mut self, mut cb: F)
     where

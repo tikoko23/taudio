@@ -1,4 +1,4 @@
-use smallvec::{SmallVec, smallvec};
+use std::ops::{Deref, DerefMut};
 
 use crate::{
     Real,
@@ -11,6 +11,22 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct BufferedSink {
     buffers: ChannelBuffers<Real>,
+}
+
+impl Deref for BufferedSink {
+    type Target = ChannelBuffers<Real>;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self.buffers
+    }
+}
+
+impl DerefMut for BufferedSink {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.buffers
+    }
 }
 
 impl Default for BufferedSink {
