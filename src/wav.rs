@@ -83,6 +83,32 @@ impl<'a> WavChunk<'a> {
 
         Ok(())
     }
+
+    /// Converts a borrowed chunk into an owned one.
+    ///
+    /// If the inner [`Cow`] is [`Cow::Owned`], this is a no-op.
+    /// If the inner [`Cow`] is [`Cow::Borrowed`], it's cloned into a [`Cow::Owned`]
+    #[inline]
+    pub fn into_static(self) -> WavChunk<'static> {
+        WavChunk {
+            data: Cow::Owned(self.data.into_owned()),
+            id: self.id,
+        }
+    }
+
+    /// Tries to convert a borrowed chunk into an owned one.
+    ///
+    /// This will fail if the internal [`Cow`] pointer is [`Cow::Borrowed`].
+    /// In the case of failure, the original chunk is returned via the [`Err`] variant.
+    pub fn try_into_static(self) -> Result<WavChunk<'static>, Self> {
+        match self.data {
+            Cow::Borrowed(_) => Err(self),
+            Cow::Owned(data) => Ok(WavChunk::<'static> {
+                data: Cow::Owned(data),
+                id: self.id,
+            }),
+        }
+    }
 }
 
 /// Represents a wave file split up into its chunks.
