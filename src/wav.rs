@@ -442,6 +442,33 @@ unsafe fn flatten_channels<S: WavSample>(channels: &[&[S]]) -> Vec<u8> {
 ///   - Yields no elements (i.e. is empty).
 ///   - Yields more than 65535 elements.
 ///   - Yields slices with different lengths.
+///
+/// # Example
+/// ```
+/// # use std::error::Error;
+/// # fn main() -> Result<(), Box<dyn Error>> {
+/// # const path: &str = ".taudio-doctest-sine.wav";
+/// #
+/// use taudio::{
+///     Real,
+///     wav,
+///     waveform::{self, WaveSource},
+/// };
+///
+/// let mut samples = vec![];
+///
+/// for i in 0..44100 {
+///     let t = (i as Real) / 44100.0;
+///
+///     samples.push(waveform::Sine.sample(440.0, t) as f32)
+/// }
+///
+/// wav::dump(path, 44100, [samples.as_slice()])?;
+/// #
+/// # std::fs::remove_file(path)?;
+/// # Ok(())
+/// # }
+/// ```
 pub fn dump<'a, S, T, P>(filename: P, sample_rate: u32, channels: T) -> std::io::Result<()>
 where
     P: AsRef<Path>,
