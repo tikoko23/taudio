@@ -122,6 +122,16 @@ impl<'a> WavChunk<'a> {
     pub fn is_owned(&self) -> bool {
         matches!(self.data, Cow::Owned(_))
     }
+
+    #[inline]
+    pub fn is_fmt(&self) -> bool {
+        self.id == *b"fmt "
+    }
+
+    #[inline]
+    pub fn is_data(&self) -> bool {
+        self.id == *b"data"
+    }
 }
 
 /// Represents a wave file split up into its chunks.
@@ -160,6 +170,30 @@ impl<'a> FromIterator<WavChunk<'a>> for WavFile<'a> {
     }
 }
 
+macro_rules! linear_time_doc_warning {
+    (#[$meta:meta] $($tt:tt)*) => {
+        #[$meta]
+        ///
+        /// This operation is _O(n)_ but it shouldn't be a problem since each file
+        /// will only have a few chunks at most.
+        $($tt)*
+    };
+}
+
+impl<'a> AsRef<[WavChunk<'a>]> for WavFile<'a> {
+    #[inline]
+    fn as_ref(&self) -> &[WavChunk<'a>] {
+        self.as_chunks()
+    }
+}
+
+impl<'a> AsMut<[WavChunk<'a>]> for WavFile<'a> {
+    #[inline]
+    fn as_mut(&mut self) -> &mut [WavChunk<'a>] {
+        self.as_chunks_mut()
+    }
+}
+
 impl<'a> WavFile<'a> {
     #[inline]
     pub fn from_chunks(it: impl IntoIterator<Item = WavChunk<'a>>) -> Self {
@@ -170,6 +204,117 @@ impl<'a> WavFile<'a> {
 
     pub fn into_chunks(self) -> Vec<WavChunk<'a>> {
         self.chunks.into_vec()
+    }
+
+    #[inline]
+    pub fn as_chunks(&self) -> &[WavChunk<'a>] {
+        &self.chunks
+    }
+
+    #[inline]
+    pub fn as_chunks_mut(&mut self) -> &mut [WavChunk<'a>] {
+        &mut self.chunks
+    }
+
+    #[inline]
+    pub fn push_chunk(&mut self, chunk: WavChunk<'a>) {
+        self.chunks.push(chunk);
+    }
+
+    #[inline]
+    pub fn pop_chunk(&mut self) -> Option<WavChunk<'a>> {
+        self.chunks.pop()
+    }
+
+    /// # Panics
+    /// This function will panic if index is out of bounds.
+    #[inline]
+    pub fn remove_chunk(&mut self, index: usize) -> WavChunk<'a> {
+        self.chunks.remove(index)
+    }
+
+    /// # Panics
+    /// This function will panic if index is out of bounds.
+    #[inline]
+    pub fn swap_remove_chunk(&mut self, index: usize) -> WavChunk<'a> {
+        self.chunks.swap_remove(index)
+    }
+
+    /// Returns an iterator over the chunks of a wave file.
+    ///
+    /// Note that the mutable variant for this function does not exist because
+    /// a [`Cow`] would have to be cloned in order for it to be written to.
+    ///
+    /// Consider using [`WavFile::as_chunks_mut`] to modify chunk contents.
+    pub fn iter_chunks(&self) -> impl Iterator<Item = ([u8; 4], &[u8])> {
+        self.chunks.iter().map(|c| (c.id, c.data.as_ref()))
+    }
+
+    linear_time_doc_warning! {
+        /// Returns a reference to the first format chunk found.
+        #[inline]
+        pub fn get_fmt_chunk(&self) -> Option<&WavChunk<'a>> {
+            self.get_chunk_by_id(*b"fmt ")
+        }
+    }
+
+    linear_time_doc_warning! {
+        /// Returns a reference to the first format chunk found.
+        #[inline]
+        pub fn get_fmt_chunk_mut(&mut self) -> Option<&mut WavChunk<'a>> {
+            self.get_chunk_by_id_mut(*b"fmt ")
+        }
+    }
+
+    linear_time_doc_warning! {
+        /// Returns a reference to the first data chunk found.
+        #[inline]
+        pub fn get_data_chunk(&self) -> Option<&WavChunk<'a>> {
+            self.get_chunk_by_id(*b"data")
+        }
+    }
+
+    linear_time_doc_warning! {
+        /// Returns a reference to the first data chunk found.
+        #[inline]
+        pub fn get_data_chunk_mut(&mut self) -> Option<&mut WavChunk<'a>> {
+            self.get_chunk_by_id_mut(*b"data")
+        }
+    }
+
+    linear_time_doc_warning! {
+        /// Returns a reference to the first chunk with the given id.
+        #[inline]
+        pub fn get_chunk_by_id(&self, id: [u8; 4]) -> Option<&WavChunk<'a>> {
+            self.chunks.iter().find(|c| c.id == id)
+        }
+    }
+
+    linear_time_doc_warning! {
+        /// Returns a reference to the first chunk with the given id.
+        #[inline]
+        pub fn get_chunk_by_id_mut(&mut self, id: [u8; 4]) -> Option<&mut WavChunk<'a>> {
+            self.chunks.iter_mut().find(|c| c.id == id)
+        }
+    }
+
+    linear_time_doc_warning! {
+        /// Returns an iterator over all chunks with the given id.
+        #[inline]
+        pub fn filter_chunks_by_id(&self, id: [u8; 4]) -> impl Iterator<Item = &WavChunk<'a>> {
+            self.chunks.iter().filter(move |c| c.id == id)
+        }
+    }
+
+    linear_time_doc_warning! {
+        /// Returns an iterator over all chunks with the given id.
+        #[inline]
+        pub fn filter_chunks_by_id_mut(
+            &mut self,
+            id: [u8; 4],
+        ) -> impl Iterator<Item = &mut WavChunk<'a>> {
+            self.chunks.iter_mut().filter(move |c| c.id == id)
+        }
     }
 
     /// Writes the wave file into the provided stream.
