@@ -352,3 +352,28 @@ where
 
     Ok(())
 }
+
+#[cfg(test)]
+mod test {
+    use crate::wav::dump;
+
+    const DUMP_PATH: &str = "/tmp/taudio-test-dump";
+
+    #[test]
+    #[should_panic = "at least one"]
+    fn dump_panics_on_empty() {
+        let _ = dump::<i16, _, _>(DUMP_PATH, 44100, []);
+    }
+
+    #[test]
+    #[should_panic = "too many"]
+    fn dump_panics_on_too_many() {
+        let _ = dump::<i16, _, _>(DUMP_PATH, 44100, std::iter::repeat_n([].as_slice(), 65536));
+    }
+
+    #[test]
+    #[should_panic = "same length"]
+    fn dump_panics_on_different_length() {
+        let _ = dump::<i16, _, _>(DUMP_PATH, 44100, [[1, 2, 3].as_slice(), [1, 2].as_slice()]);
+    }
+}
