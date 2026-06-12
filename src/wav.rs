@@ -1,6 +1,8 @@
-use std::io::{self, Write};
+use std::{
+    borrow::Cow,
+    io::{self, Write},
+};
 
-use bytes::Bytes;
 use smallvec::SmallVec;
 
 /// The format of samples used by a wave file.
@@ -25,12 +27,12 @@ pub struct WavFormatMeta {
 
 /// A single chunk of a wave file.
 #[derive(Debug, Clone)]
-pub struct WavChunk {
+pub struct WavChunk<'a> {
     pub id: [u8; 4],
-    pub data: Bytes,
+    pub data: Cow<'a, [u8]>,
 }
 
-impl WavChunk {
+impl WavChunk<'static> {
     /// Constructs a new [`WavChunk`] whose id is `fmt ` and data is
     /// derived from the given metadata value.
     pub fn new_format(meta: &WavFormatMeta) -> Self {
@@ -57,9 +59,11 @@ impl WavChunk {
             data: data.into(),
         }
     }
+}
 
+impl<'a> WavChunk<'a> {
     #[inline]
-    pub fn new_data(data: impl Into<Bytes>) -> Self {
+    pub fn new_data(data: impl Into<Cow<'a, [u8]>>) -> Self {
         Self {
             id: *b"data",
             data: data.into(),
@@ -83,11 +87,11 @@ impl WavChunk {
 
 /// Represents a wave file split up into its chunks.
 #[derive(Debug, Clone)]
-pub struct WavFile {
-    pub chunks: SmallVec<[WavChunk; 4]>,
+pub struct WavFile<'a> {
+    pub chunks: SmallVec<[WavChunk<'a>; 4]>,
 }
 
-impl WavFile {
+impl WavFile<'_> {
     /// Writes the wave file into the provided stream.
     ///
     /// # Panics
