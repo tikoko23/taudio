@@ -323,11 +323,13 @@ impl<'a> WavFile<'a> {
     /// This function will panic if the chunks' total size doesn't fit in a [`u32`].
     pub fn write(&self, w: &mut dyn Write) -> io::Result<()> {
         const CHUNK_META_SIZE: usize = 8;
+        const WAVE_SIGNATURE_SIZE: usize = 4;
 
         let file_size: usize = self
             .chunks
             .iter()
             .map(|chunk| chunk.data.len() + CHUNK_META_SIZE)
+            .chain(std::iter::once(WAVE_SIGNATURE_SIZE))
             .sum();
 
         let file_size: u32 = file_size.try_into().expect("file too big");
