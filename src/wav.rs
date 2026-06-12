@@ -109,6 +109,12 @@ impl<'a> WavChunk<'a> {
             }),
         }
     }
+
+    /// Returns whether the chunk owns the data it points to.
+    #[inline]
+    pub fn is_owned(&self) -> bool {
+        matches!(self.data, Cow::Owned(_))
+    }
 }
 
 /// Represents a wave file split up into its chunks.
@@ -142,5 +148,35 @@ impl WavFile<'_> {
         }
 
         Ok(())
+    }
+
+    /// Converts a borrowed wave file into an owned one.
+    ///
+    /// This is done by calling [`WavChunk::into_static`] on each chunk.
+    /// See its doc comment for details.
+    pub fn into_owned(self) -> WavFile<'static> {
+        WavFile {
+            chunks: self
+                .chunks
+                .into_iter()
+                .map(|chunk| chunk.into_static())
+                .collect(),
+        }
+    }
+
+    /// Tries to convert a borrowed wave file into an owned one.
+    ///
+    /// This will fail if any chunk's internal [`Cow`] pointer is [`Cow::Borrowed`].
+    /// In the case of failure, the original file is returned via the [`Err`] variant.
+    #[allow(clippy::result_large_err)]
+    pub fn try_into_owned(self) -> Result<WavFile<'static>, Self> {
+        let has_borrow = self.chunks.iter().any(|c| !c.is_owned());
+
+        if has_borrow {
+            Err(self)
+        } else {
+            // This won't clone because we verified it above.
+            Ok(self.into_owned())
+        }
     }
 }
