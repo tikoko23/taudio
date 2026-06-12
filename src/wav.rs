@@ -1,12 +1,28 @@
 use std::{
     borrow::Cow,
     fs::File,
-    io::{self, BufWriter, Write},
+    io::{self, BufWriter, Read, Write},
     ops::{Deref, DerefMut},
     path::Path,
 };
 
-use smallvec::SmallVec;
+use smallvec::{SmallVec, smallvec};
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum WavParseError {
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+
+    #[error("Invalid RIFF signature")]
+    InvalidRiffSignature,
+
+    #[error("Invalid WAVE signature")]
+    InvalidWaveSignature,
+
+    #[error("Too few bytes")]
+    TooFewBytes,
+}
 
 /// The format of samples used by a wave file.
 ///
@@ -39,7 +55,33 @@ pub struct WavChunk<'a> {
     pub data: Cow<'a, [u8]>,
 }
 
+fn to_wav_eof(err: io::Error) -> WavParseError {
+    match err.kind() {
+        io::ErrorKind::UnexpectedEof => WavParseError::TooFewBytes,
+        _ => WavParseError::Io(err),
+    }
+}
+
 impl WavChunk<'static> {
+    pub fn read(stream: &mut dyn Read) -> Result<Self, WavParseError> {
+        let mut id = [0; 4];
+        let mut sz_buf = [0; 4];
+
+        stream.read_exact(&mut id)?;
+        stream.read_exact(&mut sz_buf).map_err(to_wav_eof)?;
+
+        let size = u32::from_le_bytes(sz_buf) as usize;
+
+        let mut buffer = vec![0; size];
+
+        stream.read_exact(&mut buffer).map_err(to_wav_eof)?;
+
+        Ok(Self {
+            id,
+            data: Cow::Owned(buffer),
+        })
+    }
+
     /// Constructs a new [`WavChunk`] whose id is `fmt ` and data is
     /// derived from the given metadata value.
     pub fn new_format(meta: &WavFormatMeta) -> Self {
@@ -191,6 +233,46 @@ impl<'a> AsMut<[WavChunk<'a>]> for WavFile<'a> {
     #[inline]
     fn as_mut(&mut self) -> &mut [WavChunk<'a>] {
         self.as_chunks_mut()
+    }
+}
+
+impl WavFile<'static> {
+    pub fn read(stream: &mut dyn Read) -> Result<Self, WavParseError> {
+        let mut riff_signature = [0; 4];
+        let mut file_size_hint = [0; 4];
+        let mut wave_signature = [0; 4];
+
+        stream.read_exact(&mut riff_signature)?;
+        stream.read_exact(&mut file_size_hint)?;
+        stream.read_exact(&mut wave_signature)?;
+
+        if riff_signature != *b"RIFF" {
+            return Err(WavParseError::InvalidRiffSignature);
+        }
+
+        if wave_signature != *b"WAVE" {
+            return Err(WavParseError::InvalidWaveSignature);
+        }
+
+        let _ = u32::from_le_bytes(file_size_hint) as usize;
+
+        let mut chunks = smallvec![];
+
+        loop {
+            match WavChunk::read(stream) {
+                Ok(chk) => chunks.push(chk),
+                Err(WavParseError::Io(e)) => {
+                    if e.kind() == io::ErrorKind::UnexpectedEof {
+                        break;
+                    } else {
+                        return Err(e.into());
+                    }
+                }
+                Err(e) => return Err(e),
+            }
+        }
+
+        Ok(Self { chunks })
     }
 }
 
