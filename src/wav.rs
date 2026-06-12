@@ -200,7 +200,7 @@ impl<'a> WavFile<'a> {
 
     /// Converts a borrowed wave file into an owned one.
     ///
-    /// This is done by calling [`WavChunk::into_static`] on each chunk.
+    /// This is done by calling [`WavChunk::into_owned`] on each chunk.
     /// See its doc comment for details.
     pub fn into_owned(self) -> WavFile<'static> {
         WavFile {
