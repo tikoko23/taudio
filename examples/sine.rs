@@ -1,6 +1,5 @@
 use std::{error::Error, fs::File, io::BufWriter};
 
-use smallvec::smallvec;
 use taudio::{
     pipeline::PipelineBuilder,
     sample::{self},
@@ -33,9 +32,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             bits_per_sample: 16,
         };
 
-        let wav = WavFile {
-            chunks: smallvec![WavChunk::new_format(&meta), WavChunk::new_data(data)],
-        };
+        let wav = WavFile::from_chunks([WavChunk::new_format(&meta), WavChunk::new_data(data)]);
 
         let file = File::create("sine440hz.wav")?;
         let mut writer = BufWriter::new(file);
