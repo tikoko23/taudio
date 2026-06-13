@@ -17,7 +17,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let wav = WavFile::from_chunks([fmt_chunk, data_chunk]);
 
-    let file = File::create("sine440hz.wav")?;
+    let file = File::create("examples/sine440hz.wav")?;
     let mut writer = BufWriter::new(file);
 
     wav.write(&mut writer)?;
