@@ -110,15 +110,51 @@ impl Deref for ControlPoints {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum LfoShape {
+    Square,
+    Sinusoidal,
+    Triangle,
+    Saw,
+}
+
 #[derive(Debug, Clone)]
 pub struct Lfo {
+    kind: LfoShape,
     period: NonZeroU32,
+}
+
+fn lfo_square(t: u32, p: u32) -> f32 {
+    ((2 * t / p) % 2) as f32
+}
+
+fn lfo_sinusoidal(t: u32, p: u32) -> f32 {
+    use std::f32::consts::TAU;
+
+    let t = t as f32;
+    let p = p as f32;
+
+    0.5 - 0.5 * f32::cos(TAU * t / p)
+}
+
+fn lfo_triangle(t: u32, p: u32) -> f32 {
+    let t = t as f32;
+    let p = p as f32;
+
+    1.0 - 2.0 / p * f32::abs(t % p - p / 2.0)
+}
+
+fn lfo_saw(t: u32, p: u32) -> f32 {
+    let t = t as f32;
+    let p = p as f32;
+
+    (t / p) % 1.0
 }
 
 impl Lfo {
     #[inline]
-    pub fn new(period: NonZeroU32) -> Self {
-        Self { period }
+    pub fn new(kind: LfoShape, period: NonZeroU32) -> Self {
+        Self { kind, period }
     }
 
     #[inline]
@@ -128,13 +164,20 @@ impl Lfo {
 
     #[inline]
     pub fn sample(&self, sample_offset: u32) -> f32 {
-        let _ = sample_offset;
+        let t = sample_offset;
+        let p = self.period().get();
 
-        todo!("add different oscillator kinds")
+        match self.kind {
+            LfoShape::Square => lfo_square(t, p),
+            LfoShape::Sinusoidal => lfo_sinusoidal(t, p),
+            LfoShape::Triangle => lfo_triangle(t, p),
+            LfoShape::Saw => lfo_saw(t, p),
+        }
     }
 }
 
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub enum AutomationClip {
     Controlled(ControlPoints),
     Lfo(Lfo),
@@ -308,5 +351,86 @@ mod test {
     fn add_point_duplicate_offset_panics() {
         let mut cp = make_points(&[(0, 0.0), (100, 1.0)]);
         cp.add_point(ControlPoint::new(0.5, 100)); // Same offset as last
+    }
+
+    #[test]
+    fn lfo_square_period_one() {
+        assert_eq!(lfo_square(0, 1), 0.0);
+        assert_eq!(lfo_square(1, 1), 0.0);
+        assert_eq!(lfo_square(2, 1), 0.0);
+        assert_eq!(lfo_square(3, 1), 0.0);
+    }
+
+    fn assert_close(lhs: f32, rhs: f32) {
+        const EPS: f32 = 1e-6;
+
+        assert!((lhs - rhs).abs() <= EPS)
+    }
+
+    #[test]
+    fn lfo_square_period_halftime() {
+        assert_eq!(lfo_square(22049, 44100), 0.0);
+        assert_eq!(lfo_square(22050, 44100), 1.0);
+        assert_eq!(lfo_square(44100, 44100), 0.0);
+    }
+
+    #[test]
+    fn lfo_sinusoidal_period_one() {
+        assert_close(lfo_sinusoidal(0, 1), 0.0);
+        assert_close(lfo_sinusoidal(1, 1), 0.0);
+        assert_close(lfo_sinusoidal(2, 1), 0.0);
+        assert_close(lfo_sinusoidal(3, 1), 0.0);
+    }
+
+    #[test]
+    fn lfo_sinusoidal_period_halftime() {
+        // We leave some wiggle room for floats, that's why the halftime sample is at 22000.
+        assert!(lfo_sinusoidal(22000, 44100) < 1.0);
+        assert_close(lfo_sinusoidal(22050, 44100), 1.0);
+        assert_close(lfo_sinusoidal(44100, 44100), 0.0);
+    }
+
+    #[test]
+    fn lfo_triangle_period_one() {
+        assert_close(lfo_triangle(0, 1), 0.0);
+        assert_close(lfo_triangle(1, 1), 0.0);
+        assert_close(lfo_triangle(2, 1), 0.0);
+        assert_close(lfo_triangle(3, 1), 0.0);
+    }
+
+    #[test]
+    fn lfo_triangle_period_halftime() {
+        // The triangle wave is a simple shape so we expect more precision.
+        assert!(lfo_triangle(22049, 44100) < 1.0);
+        assert_close(lfo_triangle(22050, 44100), 1.0);
+        assert_close(lfo_triangle(44100, 44100), 0.0);
+    }
+
+    #[test]
+    fn lfo_saw_period_one() {
+        assert_close(lfo_saw(0, 1), 0.0);
+        assert_close(lfo_saw(1, 1), 0.0);
+        assert_close(lfo_saw(2, 1), 0.0);
+        assert_close(lfo_saw(3, 1), 0.0);
+    }
+
+    #[test]
+    fn lfo_saw_period_halftime() {
+        assert!(lfo_saw(22049, 44100) < 0.5);
+        assert_close(lfo_saw(22050, 44100), 0.5);
+        assert_close(lfo_saw(44100, 44100), 0.0);
+    }
+
+    #[test]
+    fn lfo_saw_increasing() {
+        let mut last = f32::NEG_INFINITY;
+
+        for t in 0..1000 {
+            let new = lfo_saw(t, 1000);
+
+            assert!(last < new);
+
+            last = new;
+        }
     }
 }
