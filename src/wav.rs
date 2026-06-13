@@ -24,6 +24,21 @@ pub enum WavParseError {
     TooFewBytes,
 }
 
+#[derive(Debug, Error)]
+pub enum WavFmtMetaError {
+    #[error("Unsupported audio format: 0x{0:X}")]
+    UnsupportedFormat(u16),
+
+    #[error("Chunk's id isn't 'fmt '")]
+    NotFmt,
+
+    #[error("Chunk is too short")]
+    TooShort,
+
+    #[error("Conflicting field data: {0}")]
+    ConflictingFieldData(&'static str),
+}
+
 /// The format of samples used by a wave file.
 ///
 /// More formats may be introduced in the future.
@@ -60,6 +75,37 @@ fn to_wav_eof(err: io::Error) -> WavParseError {
         io::ErrorKind::UnexpectedEof => WavParseError::TooFewBytes,
         _ => WavParseError::Io(err),
     }
+}
+
+macro_rules! read_bin_le {
+    (data = $s:expr; $($name:ident : $T:ty,)* $(,)?) => {{
+        let data = $s;
+
+        struct Fields {
+            $(
+                $name: $T,
+            )*
+        }
+
+        let mut ptr = 0;
+
+        let f = Fields {
+            $(
+                $name: {
+                    let n = std::mem::size_of::<$T>();
+                    let $name = &data[ptr..(ptr + n)];
+
+                    ptr += n;
+
+                    <$T>::from_le_bytes($name.try_into().unwrap())
+                },
+            )*
+        };
+
+        let _ = ptr;
+
+        f
+    }};
 }
 
 impl WavChunk<'static> {
@@ -131,6 +177,59 @@ impl<'a> WavChunk<'a> {
         w.write_all(&self.data)?;
 
         Ok(())
+    }
+
+    /// Attempts to parse the chunk for format metadata.
+    ///
+    /// Returns [`Err`] if the data is not valid or the chunk's id is not `fmt `.
+    pub fn try_parse_format_meta(&self) -> Result<WavFormatMeta, WavFmtMetaError> {
+        if !self.is_fmt() {
+            return Err(WavFmtMetaError::NotFmt);
+        }
+
+        if self.data.len() < 16 {
+            return Err(WavFmtMetaError::TooShort);
+        }
+
+        let fields = read_bin_le! {
+            data = &self.data[..];
+
+            format: u16,
+            num_channels: u16,
+            sample_rate: u32,
+            bytes_per_sec: u32,
+            block_align: u16,
+            bits_per_sample: u16,
+        };
+
+        let expected_block_align = fields.num_channels * (fields.bits_per_sample / 8);
+
+        if fields.block_align != expected_block_align {
+            return Err(WavFmtMetaError::ConflictingFieldData(
+                "Block alignment conflicts with other fields",
+            ));
+        }
+
+        let expected_bytes_per_sec = fields.sample_rate * fields.block_align as u32;
+
+        if fields.bytes_per_sec != expected_bytes_per_sec {
+            return Err(WavFmtMetaError::ConflictingFieldData(
+                "Bytes per second conflicts with other fields",
+            ));
+        }
+
+        let format = match fields.format {
+            1 => WavFormat::Pcm,
+            3 => WavFormat::Float,
+            f => return Err(WavFmtMetaError::UnsupportedFormat(f)),
+        };
+
+        Ok(WavFormatMeta {
+            audio_format: format,
+            num_channels: fields.num_channels,
+            sample_rate: fields.sample_rate,
+            bits_per_sample: fields.bits_per_sample,
+        })
     }
 
     /// Converts a borrowed chunk into an owned one.
@@ -330,6 +429,21 @@ impl<'a> WavFile<'a> {
     /// Consider using [`WavFile::as_chunks_mut`] to modify chunk contents.
     pub fn iter_chunks(&self) -> impl Iterator<Item = ([u8; 4], &[u8])> {
         self.chunks.iter().map(|c| (c.id, c.data.as_ref()))
+    }
+
+    linear_time_doc_warning! {
+        /// Attempts to parse the format chunk of this file (if it exists).
+        ///
+        /// Returns [`None`], if a chunk whose id is `fmt ` does not exist.
+        /// Otherwise, returns the [`Result`] of calling [`WavChunk::try_parse_format_meta`]
+        /// on the found chunk.
+        #[inline]
+        pub fn parse_fmt_chunk(&self) -> Option<Result<WavFormatMeta, WavFmtMetaError>> {
+            let chunk = self.get_fmt_chunk()?;
+            let meta = chunk.try_parse_format_meta();
+
+            Some(meta)
+        }
     }
 
     linear_time_doc_warning! {
