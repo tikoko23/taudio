@@ -51,6 +51,25 @@ impl Default for AutomationTrack {
     }
 }
 
+impl FromIterator<(Range<u64>, AutomationClip)> for AutomationTrack {
+    fn from_iter<T>(iter: T) -> Self
+    where
+        T: IntoIterator<Item = (Range<u64>, AutomationClip)>,
+    {
+        let mut track = AutomationTrack::new();
+
+        let iter = iter.into_iter();
+
+        track.clips.reserve(iter.size_hint().0);
+
+        for (range, clip) in iter {
+            track.add_clip(clip, range.start, range.end - range.start);
+        }
+
+        track
+    }
+}
+
 impl AutomationTrack {
     #[inline]
     pub fn new() -> Self {
@@ -87,7 +106,7 @@ impl AutomationTrack {
     /// # Panics
     /// Panics if the new track violates the [overlap constraint](AutomationTrack#overlaps).
     /// Panics if the new track violates the [time ordering constraint](AutomationTrack#time-ordering).
-    pub fn push_clip(
+    pub fn add_clip(
         &mut self,
         clip: AutomationClip,
         begin_sample_offset: u64,
@@ -263,10 +282,10 @@ mod test {
 
         assert!(track.is_empty());
 
-        track.push_clip(make_clip(), 10, 5);
+        track.add_clip(make_clip(), 10, 5);
         assert_eq!(track.len(), 1);
 
-        track.push_clip(make_clip(), 15, 10);
+        track.add_clip(make_clip(), 15, 10);
         assert_eq!(track.len(), 2);
 
         let clips: Vec<_> = track.clips().collect();
@@ -278,24 +297,24 @@ mod test {
     #[should_panic(expected = "clips must not overlap nor be out of time order")]
     fn push_clip_overlap_panics() {
         let mut track = AutomationTrack::new();
-        track.push_clip(make_clip(), 10, 10);
-        track.push_clip(make_clip(), 15, 10);
+        track.add_clip(make_clip(), 10, 10);
+        track.add_clip(make_clip(), 15, 10);
     }
 
     #[test]
     #[should_panic(expected = "clips must not overlap nor be out of time order")]
     fn push_clip_out_of_order_panics() {
         let mut track = AutomationTrack::new();
-        track.push_clip(make_clip(), 20, 10);
-        track.push_clip(make_clip(), 0, 5);
+        track.add_clip(make_clip(), 20, 10);
+        track.add_clip(make_clip(), 0, 5);
     }
 
     #[test]
     fn remove_and_pop_clip() {
         let mut track = AutomationTrack::new();
-        track.push_clip(make_clip(), 10, 5);
-        track.push_clip(make_clip(), 20, 5);
-        track.push_clip(make_clip(), 30, 5);
+        track.add_clip(make_clip(), 10, 5);
+        track.add_clip(make_clip(), 20, 5);
+        track.add_clip(make_clip(), 30, 5);
 
         track.remove_clip(1);
         assert_eq!(track.len(), 2);
@@ -308,8 +327,8 @@ mod test {
     #[test]
     fn resize_clip_success() {
         let mut track = AutomationTrack::new();
-        track.push_clip(make_clip(), 10, 5);
-        track.push_clip(make_clip(), 20, 5);
+        track.add_clip(make_clip(), 10, 5);
+        track.add_clip(make_clip(), 20, 5);
 
         track.resize_clip(0, 8);
 
@@ -321,8 +340,8 @@ mod test {
     #[should_panic(expected = "new range would overlap with the next")]
     fn resize_clip_overlap_panics() {
         let mut track = AutomationTrack::new();
-        track.push_clip(make_clip(), 10, 5);
-        track.push_clip(make_clip(), 20, 5);
+        track.add_clip(make_clip(), 10, 5);
+        track.add_clip(make_clip(), 20, 5);
 
         track.resize_clip(0, 15);
     }
@@ -330,9 +349,9 @@ mod test {
     #[test]
     fn reposition_clip_success() {
         let mut track = AutomationTrack::new();
-        track.push_clip(make_clip(), 10, 5);
-        track.push_clip(make_clip(), 20, 5);
-        track.push_clip(make_clip(), 30, 5);
+        track.add_clip(make_clip(), 10, 5);
+        track.add_clip(make_clip(), 20, 5);
+        track.add_clip(make_clip(), 30, 5);
 
         // Move B to sit between A and C more tightly
         track.reposition_clip(1, 16);
@@ -346,9 +365,9 @@ mod test {
     #[test]
     fn reposition_clip_reorder() {
         let mut track = AutomationTrack::new();
-        track.push_clip(make_clip(), 10, 5);
-        track.push_clip(make_clip(), 20, 5);
-        track.push_clip(make_clip(), 30, 5);
+        track.add_clip(make_clip(), 10, 5);
+        track.add_clip(make_clip(), 20, 5);
+        track.add_clip(make_clip(), 30, 5);
 
         track.reposition_clip(1, 35);
 
@@ -361,8 +380,8 @@ mod test {
     #[test]
     fn query_clip() {
         let mut track = AutomationTrack::new();
-        track.push_clip(make_clip(), 10, 10);
-        track.push_clip(make_clip(), 30, 10);
+        track.add_clip(make_clip(), 10, 10);
+        track.add_clip(make_clip(), 30, 10);
 
         // Inside first clip
         assert!(track.query_clip(15).is_some());
