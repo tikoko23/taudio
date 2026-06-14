@@ -158,21 +158,25 @@ impl AutomationTrack {
     pub fn reposition_clip(&mut self, index: usize, new_sample_offset: u64) {
         let new_position = self
             .clips
-            .partition_point(|c| c.range.end < new_sample_offset);
+            .partition_point(|c| c.range.end <= new_sample_offset);
 
-        if let Some(next) = self.clips.get(new_position) {
+        if let Some(next) = self.clips.get(new_position + 1) {
             let this_clip = &self.clips[index];
 
             assert!(
-                next.range.start <= new_sample_offset + this_clip.duration(),
+                next.range.start > new_sample_offset + this_clip.duration(),
                 "new position would overlap with the next clip"
             );
 
-            let clip = self.clips.remove(index);
+            let correction = new_position > index;
 
-            self.clips.insert(new_position, clip);
+            let mut clip = self.clips.remove(index);
+            clip.range = new_sample_offset..(new_sample_offset + clip.duration());
+
+            self.clips.insert(new_position - correction as usize, clip);
         } else {
-            let clip = self.clips.remove(index);
+            let mut clip = self.clips.remove(index);
+            clip.range = new_sample_offset..(new_sample_offset + clip.duration());
 
             self.clips.push(clip);
         }
@@ -180,9 +184,7 @@ impl AutomationTrack {
 
     /// Returns the clip in which the given sample offset lies, or [`None`].
     pub fn query_clip(&self, sample_offset: u64) -> Option<&AutomationClip> {
-        let split_index = self
-            .clips
-            .partition_point(|c| c.range.start > sample_offset);
+        let split_index = self.clips.partition_point(|c| c.range.end < sample_offset);
 
         if split_index >= self.clips.len() {
             return None;
@@ -224,9 +226,7 @@ impl AutomationTrack {
             return 0.0;
         };
 
-        let clip_index = self
-            .clips
-            .partition_point(|c| c.range.start > sample_offset);
+        let clip_index = self.clips.partition_point(|c| c.range.end < sample_offset);
 
         if clip_index >= self.clips.len() {
             sample_clip(last, sample_offset)
@@ -235,5 +235,148 @@ impl AutomationTrack {
 
             sample_clip(clip, sample_offset)
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::num::NonZero;
+
+    use crate::automation::{Lfo, LfoShape};
+
+    use super::*;
+
+    fn make_clip() -> AutomationClip {
+        Lfo::new(LfoShape::Saw, NonZero::new(64).unwrap()).into()
+    }
+
+    #[test]
+    fn new_and_empty() {
+        let track = AutomationTrack::new();
+        assert!(track.is_empty());
+        assert_eq!(track.len(), 0);
+    }
+
+    #[test]
+    fn push_clip_success() {
+        let mut track = AutomationTrack::new();
+
+        assert!(track.is_empty());
+
+        track.push_clip(make_clip(), 10, 5);
+        assert_eq!(track.len(), 1);
+
+        track.push_clip(make_clip(), 15, 10);
+        assert_eq!(track.len(), 2);
+
+        let clips: Vec<_> = track.clips().collect();
+        assert_eq!(clips[0].0, 10..15);
+        assert_eq!(clips[1].0, 15..25);
+    }
+
+    #[test]
+    #[should_panic(expected = "clips must not overlap nor be out of time order")]
+    fn push_clip_overlap_panics() {
+        let mut track = AutomationTrack::new();
+        track.push_clip(make_clip(), 10, 10);
+        track.push_clip(make_clip(), 15, 10);
+    }
+
+    #[test]
+    #[should_panic(expected = "clips must not overlap nor be out of time order")]
+    fn push_clip_out_of_order_panics() {
+        let mut track = AutomationTrack::new();
+        track.push_clip(make_clip(), 20, 10);
+        track.push_clip(make_clip(), 0, 5);
+    }
+
+    #[test]
+    fn remove_and_pop_clip() {
+        let mut track = AutomationTrack::new();
+        track.push_clip(make_clip(), 10, 5);
+        track.push_clip(make_clip(), 20, 5);
+        track.push_clip(make_clip(), 30, 5);
+
+        track.remove_clip(1);
+        assert_eq!(track.len(), 2);
+
+        let popped = track.pop_clip();
+        assert!(popped.is_some());
+        assert_eq!(track.len(), 1);
+    }
+
+    #[test]
+    fn resize_clip_success() {
+        let mut track = AutomationTrack::new();
+        track.push_clip(make_clip(), 10, 5);
+        track.push_clip(make_clip(), 20, 5);
+
+        track.resize_clip(0, 8);
+
+        let ranges: Vec<_> = track.clips().map(|(r, _)| r).collect();
+        assert_eq!(ranges[0], 10..18);
+    }
+
+    #[test]
+    #[should_panic(expected = "new range would overlap with the next")]
+    fn resize_clip_overlap_panics() {
+        let mut track = AutomationTrack::new();
+        track.push_clip(make_clip(), 10, 5);
+        track.push_clip(make_clip(), 20, 5);
+
+        track.resize_clip(0, 15);
+    }
+
+    #[test]
+    fn reposition_clip_success() {
+        let mut track = AutomationTrack::new();
+        track.push_clip(make_clip(), 10, 5);
+        track.push_clip(make_clip(), 20, 5);
+        track.push_clip(make_clip(), 30, 5);
+
+        // Move B to sit between A and C more tightly
+        track.reposition_clip(1, 16);
+
+        let ranges: Vec<_> = track.clips().map(|(r, _)| r).collect();
+        assert_eq!(ranges[0], 10..15);
+        assert_eq!(ranges[1], 16..21);
+        assert_eq!(ranges[2], 30..35);
+    }
+
+    #[test]
+    fn reposition_clip_reorder() {
+        let mut track = AutomationTrack::new();
+        track.push_clip(make_clip(), 10, 5);
+        track.push_clip(make_clip(), 20, 5);
+        track.push_clip(make_clip(), 30, 5);
+
+        track.reposition_clip(1, 35);
+
+        let ranges: Vec<_> = track.clips().map(|(r, _)| r).collect();
+        assert_eq!(ranges[0], 10..15);
+        assert_eq!(ranges[1], 30..35);
+        assert_eq!(ranges[2], 35..40);
+    }
+
+    #[test]
+    fn query_clip() {
+        let mut track = AutomationTrack::new();
+        track.push_clip(make_clip(), 10, 10);
+        track.push_clip(make_clip(), 30, 10);
+
+        // Inside first clip
+        assert!(track.query_clip(15).is_some());
+
+        // Inside gap
+        assert!(track.query_clip(25).is_none());
+
+        // Inside second clip
+        assert!(track.query_clip(35).is_some());
+
+        // Before first clip
+        assert!(track.query_clip(5).is_none());
+
+        assert!(track.query_clip(10).is_some());
+        assert!(track.query_clip(20).is_none());
     }
 }
