@@ -136,7 +136,7 @@ impl AutomationTrack {
 
                 if range.start + new_duration > next_start {
                     panic!(
-                        "new range would overlap with the next (would end at {end}, next starts at {next_start}",
+                        "new range would overlap with the next (would end at {end}, next starts at {next_start})",
                         end = range.start + new_duration
                     );
                 }
