@@ -110,11 +110,46 @@ impl Deref for ControlPoints {
     }
 }
 
+/// Base shape for an LFO.
+///
+/// These shapes define different waveforms which all output all values in `[0, 1]` at least
+/// once within their period.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum LfoShape {
+    /// A two-valued function resembling a square wave.
+    ///
+    /// For the first half of its period, it outputs 0. For the remaining, it outputs 1.
+    ///
+    /// This function is equivalent to the following when used with a period of `p`:
+    ///
+    /// `f(x) = 0, x ∈ [0, p/2)`
+    ///
+    /// `f(x) = 1, x ∈ [p/2, p)`
     Square,
+
+    /// A smoothly interpolated sinusoidal wave.
+    ///
+    /// This function is equivalent to the following when used with a period of `p`:
+    ///
+    /// `f(x) = 0.5 - cos(2π * x / p) / 2`
     Sinusoidal,
+
+    /// A continuous function resembling a triangle wave.
+    ///
+    /// For a period of `p`, this function is:
+    /// - 0 at `x = 0`
+    /// - 1 at `x = p/2`
+    /// - Linear-increasing for `x ∈ (0, p/2)`
+    /// - Linear-decreasing for `x ∈ (p/2, p)`
     Triangle,
+
+    /// A steadily increasing (within its period) function resembling a saw-tooth wave.
+    ///
+    /// This function is equivalent to the following when used with a period of `p`:
+    ///
+    /// `f(x) = (x / p) % 1`
+    ///
+    /// Where "remainder one" represents the fractional part of the expression.
     Saw,
 }
 
