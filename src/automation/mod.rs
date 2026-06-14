@@ -1,7 +1,9 @@
 mod clip;
+mod timeline;
 mod track;
 
 pub use clip::*;
+pub use timeline::*;
 pub use track::*;
 
 /// Normalizes a value into seconds according to the given sample rate.
