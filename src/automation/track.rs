@@ -8,6 +8,12 @@ struct ClipData {
     range: Range<u64>,
 }
 
+impl ClipData {
+    pub fn duration(&self) -> u64 {
+        self.range.end - self.range.start
+    }
+}
+
 fn sample_clip(clip: &ClipData, offset: u64) -> f32 {
     debug_assert!(offset >= clip.range.start);
 
@@ -61,16 +67,19 @@ impl AutomationTrack {
         self.clips.len()
     }
 
-    /// # Panics
-    /// Panics if the index is out of range.
-    #[inline]
-    pub fn remove_clip(&mut self, index: usize) -> AutomationClip {
-        self.clips.remove(index).clip
-    }
-
     /// Returns an iterator over the clips in this track and their occupied ranges.
     pub fn clips(&self) -> impl Iterator<Item = (Range<u64>, &AutomationClip)> {
         self.clips.iter().map(|c| (c.range.clone(), &c.clip))
+    }
+
+    /// Returns an iterator over the clips in this track and their occupied ranges.
+    ///
+    /// Mutating the clip objects is safe because the occupied range is not determined by
+    /// the clip itself.
+    pub fn clips_mut(&mut self) -> impl Iterator<Item = (Range<u64>, &mut AutomationClip)> {
+        self.clips
+            .iter_mut()
+            .map(|c| (c.range.clone(), &mut c.clip))
     }
 
     /// Adds a new clip to the end of the track.
@@ -78,7 +87,7 @@ impl AutomationTrack {
     /// # Panics
     /// Panics if the new track violates the [overlap constraint](AutomationTrack#overlaps).
     /// Panics if the new track violates the [time ordering constraint](AutomationTrack#time-ordering).
-    pub fn add_clip(
+    pub fn push_clip(
         &mut self,
         clip: AutomationClip,
         begin_sample_offset: u64,
@@ -97,6 +106,76 @@ impl AutomationTrack {
             clip,
             range: begin_sample_offset..end,
         });
+    }
+
+    /// # Panics
+    /// Panics if the index is out of range.
+    #[inline]
+    pub fn remove_clip(&mut self, index: usize) -> AutomationClip {
+        self.clips.remove(index).clip
+    }
+
+    /// Removes the last clip from the end of the track.
+    #[inline]
+    pub fn pop_clip(&mut self) -> Option<AutomationClip> {
+        self.clips.pop().map(|c| c.clip)
+    }
+
+    /// Resizes a clip from the end (i.e. moves the endpoint).
+    ///
+    /// # Panics
+    /// Panics if the index is out of range.
+    /// Panics if the [overlap constraint](AutomationClip#overlaps) is violated.
+    pub fn resize_clip(&mut self, index: usize, new_duration: u64) {
+        let next_clip = self.clips.get_mut(index + 1);
+
+        match next_clip {
+            Some(next_clip) => {
+                let next_start = next_clip.range.start;
+                let range = &mut self.clips[index].range;
+
+                if range.start + new_duration > next_start {
+                    panic!(
+                        "new range would overlap with the next (would end at {end}, next starts at {next_start}",
+                        end = range.start + new_duration
+                    );
+                }
+
+                range.end = range.start + new_duration;
+            }
+            None => {
+                let range = &mut self.clips[index].range;
+                range.end = range.start + new_duration;
+            }
+        }
+    }
+
+    /// Repositions a clip from its starting point.
+    ///
+    /// # Panics
+    /// Panics if the index is out of range.
+    /// Panics if the [overlap constraint](AutomationClip#overlaps) is violated.
+    pub fn reposition_clip(&mut self, index: usize, new_sample_offset: u64) {
+        let new_position = self
+            .clips
+            .partition_point(|c| c.range.end < new_sample_offset);
+
+        if let Some(next) = self.clips.get(new_position) {
+            let this_clip = &self.clips[index];
+
+            assert!(
+                next.range.start <= new_sample_offset + this_clip.duration(),
+                "new position would overlap with the next clip"
+            );
+
+            let clip = self.clips.remove(index);
+
+            self.clips.insert(new_position, clip);
+        } else {
+            let clip = self.clips.remove(index);
+
+            self.clips.push(clip);
+        }
     }
 
     /// Returns the clip in which the given sample offset lies, or [`None`].
