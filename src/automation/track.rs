@@ -248,12 +248,19 @@ impl AutomationTrack {
         let clip_index = self.clips.partition_point(|c| c.range.end < sample_offset);
 
         if clip_index >= self.clips.len() {
-            sample_clip(last, sample_offset)
-        } else {
-            let clip = &self.clips[clip_index];
-
-            sample_clip(clip, sample_offset)
+            return sample_clip(last, sample_offset);
         }
+
+        let clip = &self.clips[clip_index];
+
+        if clip.range.start > sample_offset {
+            todo!()
+        }
+
+        dbg!(sample_offset);
+        dbg!(clip_index);
+
+        sample_clip(clip, sample_offset)
     }
 }
 
@@ -397,5 +404,41 @@ mod test {
 
         assert!(track.query_clip(10).is_some());
         assert!(track.query_clip(20).is_none());
+    }
+
+    fn assert_close(lhs: f32, rhs: f32) {
+        const EPS: f32 = 1e-6;
+
+        assert!((lhs - rhs).abs() <= EPS)
+    }
+
+    #[test]
+    fn sample() {
+        let track = AutomationTrack::from_iter([
+            (
+                0..10,
+                Lfo::new(LfoShape::Saw, 10.try_into().unwrap()).into(),
+            ),
+            (
+                20..30,
+                Lfo::new(LfoShape::Square, 10.try_into().unwrap()).into(),
+            ),
+        ]);
+
+        for t in 0..10 {
+            assert_close(track.query_value(t), t as f32 / 10.0);
+        }
+
+        for t in 11..20 {
+            assert_close(track.query_value(t), 1.0);
+        }
+
+        for t in 20..25 {
+            assert_eq!(track.query_value(t), 0.0);
+        }
+
+        for t in 25..30 {
+            assert_eq!(track.query_value(t), 1.0);
+        }
     }
 }

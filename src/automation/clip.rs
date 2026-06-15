@@ -216,6 +216,7 @@ impl Lfo {
 pub enum AutomationClip {
     Controlled(ControlPoints),
     Lfo(Lfo),
+    Constant(f32),
 }
 
 impl From<ControlPoints> for AutomationClip {
@@ -237,6 +238,7 @@ impl AutomationClip {
         match self {
             Self::Lfo(lfo) => lfo.sample(sample_offset),
             Self::Controlled(points) => points.sample(sample_offset),
+            Self::Constant(x) => *x,
         }
     }
 }
