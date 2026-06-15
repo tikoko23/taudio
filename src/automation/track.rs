@@ -1,9 +1,6 @@
 use std::ops::Range;
 
-use crate::{
-    automation::{AutomationClip, clip},
-    sample,
-};
+use crate::automation::AutomationClip;
 
 #[derive(Debug, Clone)]
 struct ClipData {
