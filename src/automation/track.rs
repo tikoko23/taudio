@@ -221,7 +221,7 @@ impl AutomationTrack {
 
     /// Queries the value of the track at the given sample offset.
     ///
-    /// If there are no clips, 0 is returned.
+    /// If there are no clips, the fallback value is returned.
     ///
     /// If the queried sample offset is earlier than the first clip, the first value
     /// of the first clip is returned. Otherwise, the last value of the pervious clip
@@ -241,9 +241,9 @@ impl AutomationTrack {
     /// - `Q2` returns the value at `t = 20`.
     /// - `Q3` returns the corresponding value in Clip B.
     /// - `Q4` returns the value at `t = 40`.
-    pub fn query_value(&self, sample_offset: u64) -> f32 {
+    pub fn query_value(&self, sample_offset: u64, fallback: f32) -> f32 {
         let Some(first) = self.clips.first() else {
-            return 0.0;
+            return fallback;
         };
 
         let late_clip_index = self
@@ -427,19 +427,19 @@ mod test {
         ]);
 
         for t in 0..10 {
-            assert_close(track.query_value(t), t as f32 / 10.0);
+            assert_close(track.query_value(t, f32::NAN), t as f32 / 10.0);
         }
 
         for t in 10..20 {
-            assert_close(track.query_value(t), 0.9);
+            assert_close(track.query_value(t, f32::NAN), 0.9);
         }
 
         for t in 20..25 {
-            assert_eq!(track.query_value(t), 0.0);
+            assert_eq!(track.query_value(t, f32::NAN), 0.0);
         }
 
         for t in 25..30 {
-            assert_eq!(track.query_value(t), 1.0);
+            assert_eq!(track.query_value(t, f32::NAN), 1.0);
         }
     }
 
@@ -450,10 +450,10 @@ mod test {
             (30..40, AutomationClip::Constant(0.67)),
         ]);
 
-        assert_eq!(track.query_value(0), 0.23);
-        assert_eq!(track.query_value(15), 0.23);
-        assert_eq!(track.query_value(25), 0.23);
-        assert_eq!(track.query_value(35), 0.67);
-        assert_eq!(track.query_value(45), 0.67);
+        assert_eq!(track.query_value(0, f32::NAN), 0.23);
+        assert_eq!(track.query_value(15, f32::NAN), 0.23);
+        assert_eq!(track.query_value(25, f32::NAN), 0.23);
+        assert_eq!(track.query_value(35, f32::NAN), 0.67);
+        assert_eq!(track.query_value(45, f32::NAN), 0.67);
     }
 }
