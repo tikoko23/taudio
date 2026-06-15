@@ -1,6 +1,9 @@
 use std::ops::Range;
 
-use crate::automation::AutomationClip;
+use crate::{
+    automation::{AutomationClip, clip},
+    sample,
+};
 
 #[derive(Debug, Clone)]
 struct ClipData {
@@ -15,11 +18,12 @@ impl ClipData {
 }
 
 fn sample_clip(clip: &ClipData, offset: u64) -> f32 {
-    debug_assert!(offset >= clip.range.start);
+    if clip.range.end - clip.range.start == 0 {
+        return clip.clip.sample(0);
+    }
 
-    let local = offset - clip.range.start;
-
-    debug_assert!(local <= u32::MAX.into());
+    let clamp = u64::clamp(offset, clip.range.start, clip.range.end - 1);
+    let local = clamp - clip.range.start;
 
     clip.clip.sample(local as u32)
 }
@@ -203,7 +207,7 @@ impl AutomationTrack {
 
     /// Returns the clip in which the given sample offset lies, or [`None`].
     pub fn query_clip(&self, sample_offset: u64) -> Option<&AutomationClip> {
-        let split_index = self.clips.partition_point(|c| c.range.end < sample_offset);
+        let split_index = self.clips.partition_point(|c| c.range.end <= sample_offset);
 
         if split_index >= self.clips.len() {
             return None;
@@ -241,39 +245,32 @@ impl AutomationTrack {
     /// - `Q3` returns the corresponding value in Clip B.
     /// - `Q4` returns the value at `t = 40`.
     pub fn query_value(&self, sample_offset: u64) -> f32 {
-        let Some(last) = self.clips.last() else {
+        let Some(first) = self.clips.first() else {
             return 0.0;
         };
 
-        let clip_index = self.clips.partition_point(|c| c.range.end < sample_offset);
+        let late_clip_index = self
+            .clips
+            .partition_point(|c| c.range.start <= sample_offset);
 
-        if clip_index >= self.clips.len() {
-            return sample_clip(last, sample_offset);
+        if late_clip_index == 0 {
+            sample_clip(first, first.range.start)
+        } else {
+            let clip = &self.clips[late_clip_index - 1];
+
+            sample_clip(clip, sample_offset)
         }
-
-        let clip = &self.clips[clip_index];
-
-        if clip.range.start > sample_offset {
-            todo!()
-        }
-
-        dbg!(sample_offset);
-        dbg!(clip_index);
-
-        sample_clip(clip, sample_offset)
     }
 }
 
 #[cfg(test)]
 mod test {
-    use std::num::NonZero;
-
     use crate::automation::{Lfo, LfoShape};
 
     use super::*;
 
     fn make_clip() -> AutomationClip {
-        Lfo::new(LfoShape::Saw, NonZero::new(64).unwrap()).into()
+        AutomationClip::Constant(0.5)
     }
 
     #[test]
@@ -384,25 +381,32 @@ mod test {
         assert_eq!(ranges[2], 35..40);
     }
 
+    macro_rules! assert_matches {
+        ($expr:expr, $pat:pat) => {
+            assert!(matches!($expr, $pat));
+        };
+    }
+
     #[test]
     fn query_clip() {
         let mut track = AutomationTrack::new();
-        track.add_clip(make_clip(), 10, 10);
-        track.add_clip(make_clip(), 30, 10);
+        track.add_clip(AutomationClip::Constant(0.23), 10, 10);
+        track.add_clip(AutomationClip::Constant(0.67), 30, 10);
 
         // Inside first clip
-        assert!(track.query_clip(15).is_some());
+        assert_matches!(track.query_clip(15), Some(AutomationClip::Constant(0.23)));
 
         // Inside gap
         assert!(track.query_clip(25).is_none());
 
         // Inside second clip
-        assert!(track.query_clip(35).is_some());
+        assert_matches!(track.query_clip(35), Some(AutomationClip::Constant(0.67)));
 
         // Before first clip
         assert!(track.query_clip(5).is_none());
 
-        assert!(track.query_clip(10).is_some());
+        assert_matches!(track.query_clip(10), Some(AutomationClip::Constant(0.23)));
+
         assert!(track.query_clip(20).is_none());
     }
 
@@ -413,7 +417,7 @@ mod test {
     }
 
     #[test]
-    fn sample() {
+    fn sample1() {
         let track = AutomationTrack::from_iter([
             (
                 0..10,
@@ -429,8 +433,8 @@ mod test {
             assert_close(track.query_value(t), t as f32 / 10.0);
         }
 
-        for t in 11..20 {
-            assert_close(track.query_value(t), 1.0);
+        for t in 10..20 {
+            assert_close(track.query_value(t), 0.9);
         }
 
         for t in 20..25 {
@@ -440,5 +444,19 @@ mod test {
         for t in 25..30 {
             assert_eq!(track.query_value(t), 1.0);
         }
+    }
+
+    #[test]
+    fn sample2() {
+        let track = AutomationTrack::from_iter([
+            (10..20, AutomationClip::Constant(0.23)),
+            (30..40, AutomationClip::Constant(0.67)),
+        ]);
+
+        assert_eq!(track.query_value(0), 0.23);
+        assert_eq!(track.query_value(15), 0.23);
+        assert_eq!(track.query_value(25), 0.23);
+        assert_eq!(track.query_value(35), 0.67);
+        assert_eq!(track.query_value(45), 0.67);
     }
 }
