@@ -5,6 +5,7 @@ pub mod consts {
     pub use std::f64::consts::*;
 }
 
+pub mod automation;
 pub mod buffer;
 pub mod err;
 pub mod id;
