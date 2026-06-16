@@ -213,7 +213,6 @@ pub struct Pipeline {
     id_to_node_index: IdContainer<Vec<usize>>,
     buffer_assignments: Vec<BufferAssignment>,
     output_bufs: Vec<BufferId>,
-    automations: AutomationTimeline,
     current_sample_offset: u64,
 }
 
@@ -253,7 +252,6 @@ impl From<PipelineTemplate> for Pipeline {
             output_bufs: vec![],
             nodes: ordered_nodes,
             current_sample_offset: 0,
-            automations: template.automations,
             id_to_node_index,
             buffers,
         }
@@ -287,16 +285,6 @@ impl Pipeline {
             PipelineAudioNode::Sink { id, node, .. } => Some((*id, node.as_mut())),
             _ => None,
         })
-    }
-
-    #[inline]
-    pub fn automations(&self) -> &AutomationTimeline {
-        &self.automations
-    }
-
-    #[inline]
-    pub fn automations_mut(&mut self) -> &mut AutomationTimeline {
-        &mut self.automations
     }
 
     pub fn get_node(&self, id: NodeId) -> Option<&dyn AudioNode> {
@@ -365,9 +353,18 @@ impl Pipeline {
         }
     }
 
+    /// Samples from the pipeline.
+    ///
+    /// If the given automation timeline differs in sucessive calls, its a logic error.
+    /// Pass in a default timeline to ignore automations.
+    ///
     /// # Panics
     /// Panics if the requested sample count is greater than the pipeline sample count.
-    pub fn sample(&mut self, n_samples: u32) -> Result<(), AudioError> {
+    pub fn sample(
+        &mut self,
+        n_samples: u32,
+        automations: &AutomationTimeline,
+    ) -> Result<(), AudioError> {
         if self.opts.sample_rate.get() < n_samples {
             panic!("number of requested samples exceeded pipeline sample rate");
         }
@@ -393,7 +390,7 @@ impl Pipeline {
                 sample_rate: self.opts.sample_rate.get(),
                 batch_begin: self.current_sample_offset,
                 num_samples: n_samples,
-                automations: &self.automations,
+                automations,
             };
 
             match node {

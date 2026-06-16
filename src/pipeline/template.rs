@@ -3,7 +3,6 @@ use std::{collections::HashSet, num::NonZeroU32};
 use smallvec::smallvec;
 
 use crate::{
-    automation::AutomationTimeline,
     err::AudioError,
     id::{IdContainer, IncrementalId, NumericId},
     pipeline::{
@@ -22,7 +21,6 @@ pub struct PipelineTemplate {
     pub(crate) topological_order: Vec<NodeId>,
     pub(crate) nodes: IdContainer<Vec<PipelineAudioNode>>,
     pub(crate) buffer_assignments: Vec<BufferAssignment>,
-    pub(crate) automations: AutomationTimeline,
     pub(crate) num_buffers: usize,
 }
 
@@ -96,7 +94,6 @@ impl TryFrom<PipelineBuilder> for PipelineTemplate {
             opts: builder.opts,
             buffer_assignments: result.assignments,
             num_buffers: result.num_buffers,
-            automations: builder.automation,
             topological_order,
         })
     }

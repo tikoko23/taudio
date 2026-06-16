@@ -1,7 +1,6 @@
-use std::{cell::RefCell, num::NonZero};
+use std::num::NonZero;
 
 use crate::{
-    automation::AutomationTimeline,
     err::AudioError,
     id::IdContainer,
     node::{
@@ -76,7 +75,6 @@ impl Default for PipelineOpts {
 pub struct PipelineBuilder {
     pub(super) nodes: IdContainer<Vec<PipelineAudioNode>>,
     pub(super) opts: PipelineOpts,
-    pub(super) automation: AutomationTimeline,
 }
 
 impl Default for PipelineBuilder {
@@ -84,7 +82,6 @@ impl Default for PipelineBuilder {
         Self {
             nodes: vec![].into(),
             opts: PipelineOpts::default(),
-            automation: AutomationTimeline::new(),
         }
     }
 }
@@ -94,7 +91,6 @@ impl PipelineBuilder {
     pub fn new(opts: PipelineOpts) -> Self {
         Self {
             nodes: vec![].into(),
-            automation: AutomationTimeline::new(),
             opts,
         }
     }
@@ -116,8 +112,6 @@ impl PipelineBuilder {
 
         let src_info = src.setup(&AudioSourceCfg {
             sample_rate: self.opts.sample_rate.get(),
-            automations: RefCell::new(&mut self.automation),
-            id,
         })?;
 
         Ok(self.nodes.push_id(PipelineAudioNode::Source {
@@ -155,8 +149,6 @@ impl PipelineBuilder {
         let proc_info = proc.setup(&AudioProcessorCfg {
             sample_rate: self.opts.sample_rate.get(),
             num_inputs: inputs.len(),
-            automations: RefCell::new(&mut self.automation),
-            id,
         })?;
 
         Ok(self.nodes.push_id(PipelineAudioNode::Processor {
@@ -195,8 +187,6 @@ impl PipelineBuilder {
         let sink_info = sink.setup(&AudioSinkCfg {
             num_inputs: inputs.len(),
             sample_rate: self.opts.sample_rate.get(),
-            automations: RefCell::new(&mut self.automation),
-            id,
         })?;
 
         Ok(self.nodes.push_id(PipelineAudioNode::Sink {

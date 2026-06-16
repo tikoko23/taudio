@@ -1,11 +1,10 @@
-use std::{any::Any, cell::RefCell, fmt::Debug};
+use std::{any::Any, fmt::Debug};
 
 use crate::{
     Real,
     automation::{AutomationId, AutomationTimeline},
     buffer::SampleChannels,
     err::AudioError,
-    pipeline::NodeId,
 };
 
 macro_rules! boxed_dupe {
@@ -37,42 +36,9 @@ boxed_dupe! {
     pub trait AudioProcessorClone for<dyn AudioProcessor> { ... }
 }
 
-pub trait AutomationRegisterExt {
-    /// Forwards the call to [`AutomationTimeline::register`]. See its documentation for details.
-    fn register_automation(&self, name: impl Into<String>, default_value: Real) -> AutomationId;
-}
-
-impl AutomationRegisterExt for AudioSourceCfg<'_> {
-    #[inline]
-    fn register_automation(&self, name: impl Into<String>, default_value: Real) -> AutomationId {
-        self.automations.borrow_mut().register(name, default_value)
-    }
-}
-
-impl AutomationRegisterExt for AudioProcessorCfg<'_> {
-    #[inline]
-    fn register_automation(&self, name: impl Into<String>, default_value: Real) -> AutomationId {
-        self.automations.borrow_mut().register(name, default_value)
-    }
-}
-
-impl AutomationRegisterExt for AudioSinkCfg<'_> {
-    #[inline]
-    fn register_automation(&self, name: impl Into<String>, default_value: Real) -> AutomationId {
-        self.automations.borrow_mut().register(name, default_value)
-    }
-}
-
 #[derive(Debug)]
-pub struct AudioSourceCfg<'a> {
+pub struct AudioSourceCfg {
     pub sample_rate: u32,
-    pub id: NodeId,
-    /// This field is in a [`RefCell`] but this can never panic.
-    /// It's only used with [`AutomationRegisterExt::register_automation`] which requires interior mutability.
-    ///
-    /// The borrow handle is immediately dropped on function return which means
-    /// a panic cannot happen. Modify / use this field with care.
-    pub(crate) automations: RefCell<&'a mut AutomationTimeline>,
 }
 
 #[derive(Debug, Clone)]
@@ -81,32 +47,18 @@ pub struct AudioSourceInfo {
 }
 
 #[derive(Debug)]
-pub struct AudioSinkCfg<'a> {
+pub struct AudioSinkCfg {
     pub num_inputs: usize,
     pub sample_rate: u32,
-    pub id: NodeId,
-    /// This field is in a [`RefCell`] but this can never panic.
-    /// It's only used with [`AutomationRegisterExt::register_automation`] which requires interior mutability.
-    ///
-    /// The borrow handle is immediately dropped on function return which means
-    /// a panic cannot happen. Modify / use this field with care.
-    pub(crate) automations: RefCell<&'a mut AutomationTimeline>,
 }
 
 #[derive(Debug, Clone)]
 pub struct AudioSinkInfo {}
 
 #[derive(Debug)]
-pub struct AudioProcessorCfg<'a> {
+pub struct AudioProcessorCfg {
     pub sample_rate: u32,
     pub num_inputs: usize,
-    pub id: NodeId,
-    /// This field is in a [`RefCell`] but this can never panic.
-    /// It's only used with [`AutomationRegisterExt::register_automation`] which requires interior mutability.
-    ///
-    /// The borrow handle is immediately dropped on function return which means
-    /// a panic cannot happen. Modify / use this field with care.
-    pub(crate) automations: RefCell<&'a mut AutomationTimeline>,
 }
 
 #[derive(Debug, Clone)]

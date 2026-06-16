@@ -1,6 +1,7 @@
 use std::{error::Error, fs::File, io::BufWriter};
 
 use taudio::{
+    automation::AutomationTimeline,
     pipeline::PipelineBuilder,
     sample::{self},
     sinks::SampleSink,
@@ -18,7 +19,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let sink_id = builder.add_sink([osc_id.output(0)], SampleSink::new(sample::Int16))?;
 
     let mut pipeline = builder.build()?;
-    pipeline.sample(44100)?;
+    pipeline.sample(44100, &AutomationTimeline::default())?;
 
     let sink = pipeline
         .get_sink_mut(sink_id)
