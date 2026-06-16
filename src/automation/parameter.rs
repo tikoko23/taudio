@@ -3,6 +3,37 @@ use crate::{
     automation::{AutomationId, AutomationTimeline},
 };
 
+/// Common trait for types which can be converted into parameters.
+///
+/// The main use-case for this trait is to design ergonomic node APIs
+/// where both [`Parameter`] values and constant values can be provided.
+///
+/// ```
+/// # let id = taudio::automation::AutomationId::FIRST;
+/// use taudio::{
+///     automation::{CurveMapping, Parameter},
+///     Real,
+/// };
+///
+/// struct GainNode {
+///     amp: Parameter<Real, CurveMapping>
+/// }
+///
+/// impl GainNode {
+///     fn new(amplitude: impl IntoParameter<Real, CurveMapping>) -> Self {
+///         Self {
+///             amp: amplitude.into_parameter(),
+///         }
+///     }
+/// }
+///
+/// let _ = GainNode::new(1.0);
+///
+/// let _ = GainNode::new(Parameter::Automated {
+///     id,
+///     mapping: CurveMapping::Exp(0.5, 1.0),
+/// });
+/// ```
 pub trait IntoParameter<T, M>
 where
     T: Copy,
