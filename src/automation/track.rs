@@ -279,8 +279,6 @@ impl AutomationTrack {
 
 #[cfg(test)]
 mod test {
-    use crate::automation::{Lfo, LfoShape};
-
     use super::*;
 
     fn make_clip() -> AutomationClip {
@@ -422,12 +420,6 @@ mod test {
         assert_matches!(track.query_clip(10.0), Some(AutomationClip::Constant(0.23)));
 
         assert!(track.query_clip(20.0).is_none());
-    }
-
-    fn assert_close(lhs: Real, rhs: Real) {
-        const EPS: Real = 1e-9;
-
-        assert!((lhs - rhs).abs() <= EPS)
     }
 
     #[test]
