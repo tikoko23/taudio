@@ -36,7 +36,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             id: freq_param,
             mapping: CurveMapping::Exp(220.0, 440.0),
         },
-        Parameter::Constant(1.0),
+        1.0,
         1,
     );
 
