@@ -59,8 +59,8 @@ impl<T: Clone> ChannelBuffers<T> {
 
     /// Returns an iterator over the stored samples.
     ///
-    /// This function will move the buffers into the iterator. Reuse of the [`BufferedSink`] will
-    /// cause new allocations. See [`BufferedSink::visit`] for a non-owning, no-alloc alternative
+    /// This function will move the buffers into the iterator. Reuse of the [`ChannelBuffers`] will
+    /// cause new allocations. See [`ChannelBuffers::visit`] for a non-owning, no-alloc alternative
     /// if you allocate your own buffers.
     pub fn take(&mut self) -> impl Iterator<Item = Vec<T>> {
         self.buffers.iter_mut().map(std::mem::take)
@@ -109,8 +109,8 @@ impl<T: Clone> ChannelBuffers<T> {
 
     /// Returns the stored samples of the channel with the given index and clears the inner buffer.
     ///
-    /// This function will move the buffer into the return value. Reuse of the [`BufferedSink`] will
-    /// cause new allocations. See [`BufferedSink::get_channel`] for a non-owning, no-alloc alternative
+    /// This function will move the buffer into the return value. Reuse of the [`ChannelBuffers`] will
+    /// cause new allocations. See [`ChannelBuffers::get_channel`] for a non-owning, no-alloc alternative
     /// if you allocate your own buffers.
     pub fn take_channel(&mut self, channel: usize) -> Vec<T> {
         std::mem::take(&mut self.buffers[channel])

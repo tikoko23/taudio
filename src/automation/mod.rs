@@ -11,7 +11,7 @@ pub use track::*;
 /// Constructs a parameter name string from a node name (`&str`), an id ([`NodeId`]) and
 /// a parameter name (`&str`).
 ///
-/// [`NodeId`]: crate::node::NodeId
+/// [`NodeId`]: crate::pipeline::NodeId
 #[macro_export]
 macro_rules! paramname {
     ($node_name:expr, $id:expr, $param_name:expr) => {
