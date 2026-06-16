@@ -1,28 +1,28 @@
-use std::ops::Range;
+use std::ops::{Range, RangeBounds};
 
-use crate::automation::AutomationClip;
+use crate::{Real, automation::AutomationClip};
 
 #[derive(Debug, Clone)]
 struct ClipData {
     clip: AutomationClip,
-    range: Range<u64>,
+    range: Range<Real>,
 }
 
 impl ClipData {
-    pub fn duration(&self) -> u64 {
+    pub fn duration(&self) -> Real {
         self.range.end - self.range.start
     }
 }
 
-fn sample_clip(clip: &ClipData, offset: u64) -> f32 {
-    if clip.range.end - clip.range.start == 0 {
-        return clip.clip.sample(0);
+fn sample_clip(clip: &ClipData, offset: Real) -> Real {
+    if clip.range.end - clip.range.start == 0.0 {
+        return clip.clip.sample(0.0);
     }
 
-    let clamp = u64::clamp(offset, clip.range.start, clip.range.end - 1);
+    let clamp = Real::clamp(offset, clip.range.start, clip.range.end - 1.0);
     let local = clamp - clip.range.start;
 
-    clip.clip.sample(local as u32)
+    clip.clip.sample(local)
 }
 
 /// Groups automation clips of one parameter ordered by time.
@@ -52,10 +52,10 @@ impl Default for AutomationTrack {
     }
 }
 
-impl FromIterator<(Range<u64>, AutomationClip)> for AutomationTrack {
+impl FromIterator<(Range<Real>, AutomationClip)> for AutomationTrack {
     fn from_iter<T>(iter: T) -> Self
     where
-        T: IntoIterator<Item = (Range<u64>, AutomationClip)>,
+        T: IntoIterator<Item = (Range<Real>, AutomationClip)>,
     {
         let mut track = AutomationTrack::new();
 
@@ -64,7 +64,7 @@ impl FromIterator<(Range<u64>, AutomationClip)> for AutomationTrack {
         track.clips.reserve(iter.size_hint().0);
 
         for (range, clip) in iter {
-            track.add_clip(clip, range.start, range.end - range.start);
+            track.add_clip(clip, range);
         }
 
         track
@@ -88,7 +88,7 @@ impl AutomationTrack {
     }
 
     /// Returns an iterator over the clips in this track and their occupied ranges.
-    pub fn clips(&self) -> impl Iterator<Item = (Range<u64>, &AutomationClip)> {
+    pub fn clips(&self) -> impl Iterator<Item = (Range<Real>, &AutomationClip)> {
         self.clips.iter().map(|c| (c.range.clone(), &c.clip))
     }
 
@@ -96,7 +96,7 @@ impl AutomationTrack {
     ///
     /// Mutating the clip objects is safe because the occupied range is not determined by
     /// the clip itself.
-    pub fn clips_mut(&mut self) -> impl Iterator<Item = (Range<u64>, &mut AutomationClip)> {
+    pub fn clips_mut(&mut self) -> impl Iterator<Item = (Range<Real>, &mut AutomationClip)> {
         self.clips
             .iter_mut()
             .map(|c| (c.range.clone(), &mut c.clip))
@@ -107,25 +107,23 @@ impl AutomationTrack {
     /// # Panics
     /// Panics if the new track violates the [overlap constraint](AutomationTrack#overlaps).
     /// Panics if the new track violates the [time ordering constraint](AutomationTrack#time-ordering).
-    pub fn add_clip(
-        &mut self,
-        clip: AutomationClip,
-        begin_sample_offset: u64,
-        duration_in_samples: u64,
-    ) {
+    pub fn add_clip(&mut self, clip: AutomationClip, span: Range<Real>) {
+        assert!(span.start.is_finite(), "clip start time must be finite");
+        assert!(span.start >= 0.0, "clip start time must be positive");
+
+        assert!(span.end.is_finite(), "clip start time must be finite");
+        assert!(span.end >= 0.0, "clip start time must be positive");
+
+        assert!(span.end >= span.start);
+
         if let Some(last) = self.clips.last() {
             assert!(
-                last.range.end <= begin_sample_offset,
+                last.range.end <= span.start,
                 "clips must not overlap nor be out of time order"
             );
         }
 
-        let end = begin_sample_offset + duration_in_samples;
-
-        self.clips.push(ClipData {
-            clip,
-            range: begin_sample_offset..end,
-        });
+        self.clips.push(ClipData { clip, range: span });
     }
 
     /// # Panics
@@ -146,7 +144,7 @@ impl AutomationTrack {
     /// # Panics
     /// Panics if the index is out of range.
     /// Panics if the [overlap constraint](AutomationClip#overlaps) is violated.
-    pub fn resize_clip(&mut self, index: usize, new_duration: u64) {
+    pub fn resize_clip(&mut self, index: usize, new_duration: Real) {
         let next_clip = self.clips.get_mut(index + 1);
 
         match next_clip {
@@ -175,36 +173,34 @@ impl AutomationTrack {
     /// # Panics
     /// Panics if the index is out of range.
     /// Panics if the [overlap constraint](AutomationClip#overlaps) is violated.
-    pub fn reposition_clip(&mut self, index: usize, new_sample_offset: u64) {
-        let new_position = self
-            .clips
-            .partition_point(|c| c.range.end <= new_sample_offset);
+    pub fn reposition_clip(&mut self, index: usize, new_offset: Real) {
+        let new_position = self.clips.partition_point(|c| c.range.end <= new_offset);
 
         if let Some(next) = self.clips.get(new_position + 1) {
             let this_clip = &self.clips[index];
 
             assert!(
-                next.range.start > new_sample_offset + this_clip.duration(),
+                next.range.start > new_offset + this_clip.duration(),
                 "new position would overlap with the next clip"
             );
 
             let correction = new_position > index;
 
             let mut clip = self.clips.remove(index);
-            clip.range = new_sample_offset..(new_sample_offset + clip.duration());
+            clip.range = new_offset..(new_offset + clip.duration());
 
             self.clips.insert(new_position - correction as usize, clip);
         } else {
             let mut clip = self.clips.remove(index);
-            clip.range = new_sample_offset..(new_sample_offset + clip.duration());
+            clip.range = new_offset..(new_offset + clip.duration());
 
             self.clips.push(clip);
         }
     }
 
     /// Returns the clip in which the given sample offset lies, or [`None`].
-    pub fn query_clip(&self, sample_offset: u64) -> Option<&AutomationClip> {
-        let split_index = self.clips.partition_point(|c| c.range.end <= sample_offset);
+    pub fn query_clip(&self, offset: Real) -> Option<&AutomationClip> {
+        let split_index = self.clips.partition_point(|c| c.range.end <= offset);
 
         if split_index >= self.clips.len() {
             return None;
@@ -212,7 +208,7 @@ impl AutomationTrack {
 
         let candidate = &self.clips[split_index];
 
-        if candidate.range.contains(&sample_offset) {
+        if candidate.range.contains(&offset) {
             Some(&candidate.clip)
         } else {
             None
@@ -241,21 +237,19 @@ impl AutomationTrack {
     /// - `Q2` returns the value at `t = 20`.
     /// - `Q3` returns the corresponding value in Clip B.
     /// - `Q4` returns the value at `t = 40`.
-    pub fn query_value(&self, sample_offset: u64, fallback: f32) -> f32 {
+    pub fn query_value(&self, offset: Real, fallback: Real) -> Real {
         let Some(first) = self.clips.first() else {
             return fallback;
         };
 
-        let late_clip_index = self
-            .clips
-            .partition_point(|c| c.range.start <= sample_offset);
+        let late_clip_index = self.clips.partition_point(|c| c.range.start <= offset);
 
         if late_clip_index == 0 {
             sample_clip(first, first.range.start)
         } else {
             let clip = &self.clips[late_clip_index - 1];
 
-            sample_clip(clip, sample_offset)
+            sample_clip(clip, offset)
         }
     }
 }
@@ -283,39 +277,39 @@ mod test {
 
         assert!(track.is_empty());
 
-        track.add_clip(make_clip(), 10, 5);
+        track.add_clip(make_clip(), 10.0..15.0);
         assert_eq!(track.len(), 1);
 
-        track.add_clip(make_clip(), 15, 10);
+        track.add_clip(make_clip(), 15.0..25.0);
         assert_eq!(track.len(), 2);
 
         let clips: Vec<_> = track.clips().collect();
-        assert_eq!(clips[0].0, 10..15);
-        assert_eq!(clips[1].0, 15..25);
+        assert_eq!(clips[0].0, 10.0..15.0);
+        assert_eq!(clips[1].0, 15.0..25.0);
     }
 
     #[test]
     #[should_panic(expected = "clips must not overlap nor be out of time order")]
     fn push_clip_overlap_panics() {
         let mut track = AutomationTrack::new();
-        track.add_clip(make_clip(), 10, 10);
-        track.add_clip(make_clip(), 15, 10);
+        track.add_clip(make_clip(), 10.0..20.0);
+        track.add_clip(make_clip(), 15.0..25.0);
     }
 
     #[test]
     #[should_panic(expected = "clips must not overlap nor be out of time order")]
     fn push_clip_out_of_order_panics() {
         let mut track = AutomationTrack::new();
-        track.add_clip(make_clip(), 20, 10);
-        track.add_clip(make_clip(), 0, 5);
+        track.add_clip(make_clip(), 20.0..30.0);
+        track.add_clip(make_clip(), 0.0..5.0);
     }
 
     #[test]
     fn remove_and_pop_clip() {
         let mut track = AutomationTrack::new();
-        track.add_clip(make_clip(), 10, 5);
-        track.add_clip(make_clip(), 20, 5);
-        track.add_clip(make_clip(), 30, 5);
+        track.add_clip(make_clip(), 10.0..15.0);
+        track.add_clip(make_clip(), 20.0..25.0);
+        track.add_clip(make_clip(), 30.0..35.0);
 
         track.remove_clip(1);
         assert_eq!(track.len(), 2);
@@ -328,54 +322,54 @@ mod test {
     #[test]
     fn resize_clip_success() {
         let mut track = AutomationTrack::new();
-        track.add_clip(make_clip(), 10, 5);
-        track.add_clip(make_clip(), 20, 5);
+        track.add_clip(make_clip(), 10.0..15.0);
+        track.add_clip(make_clip(), 20.0..25.0);
 
-        track.resize_clip(0, 8);
+        track.resize_clip(0, 8.0);
 
         let ranges: Vec<_> = track.clips().map(|(r, _)| r).collect();
-        assert_eq!(ranges[0], 10..18);
+        assert_eq!(ranges[0], 10.0..18.0);
     }
 
     #[test]
     #[should_panic(expected = "new range would overlap with the next")]
     fn resize_clip_overlap_panics() {
         let mut track = AutomationTrack::new();
-        track.add_clip(make_clip(), 10, 5);
-        track.add_clip(make_clip(), 20, 5);
+        track.add_clip(make_clip(), 10.0..15.0);
+        track.add_clip(make_clip(), 20.0..25.0);
 
-        track.resize_clip(0, 15);
+        track.resize_clip(0, 15.0);
     }
 
     #[test]
     fn reposition_clip_success() {
         let mut track = AutomationTrack::new();
-        track.add_clip(make_clip(), 10, 5);
-        track.add_clip(make_clip(), 20, 5);
-        track.add_clip(make_clip(), 30, 5);
+        track.add_clip(make_clip(), 10.0..15.0);
+        track.add_clip(make_clip(), 20.0..25.0);
+        track.add_clip(make_clip(), 30.0..35.0);
 
         // Move B to sit between A and C more tightly
-        track.reposition_clip(1, 16);
+        track.reposition_clip(1, 16.0);
 
         let ranges: Vec<_> = track.clips().map(|(r, _)| r).collect();
-        assert_eq!(ranges[0], 10..15);
-        assert_eq!(ranges[1], 16..21);
-        assert_eq!(ranges[2], 30..35);
+        assert_eq!(ranges[0], 10.0..15.0);
+        assert_eq!(ranges[1], 16.0..21.0);
+        assert_eq!(ranges[2], 30.0..35.0);
     }
 
     #[test]
     fn reposition_clip_reorder() {
         let mut track = AutomationTrack::new();
-        track.add_clip(make_clip(), 10, 5);
-        track.add_clip(make_clip(), 20, 5);
-        track.add_clip(make_clip(), 30, 5);
+        track.add_clip(make_clip(), 10.0..15.0);
+        track.add_clip(make_clip(), 20.0..25.0);
+        track.add_clip(make_clip(), 30.0..35.0);
 
-        track.reposition_clip(1, 35);
+        track.reposition_clip(1, 35.0);
 
         let ranges: Vec<_> = track.clips().map(|(r, _)| r).collect();
-        assert_eq!(ranges[0], 10..15);
-        assert_eq!(ranges[1], 30..35);
-        assert_eq!(ranges[2], 35..40);
+        assert_eq!(ranges[0], 10.0..15.0);
+        assert_eq!(ranges[1], 30.0..35.0);
+        assert_eq!(ranges[2], 35.0..40.0);
     }
 
     macro_rules! assert_matches {
@@ -387,28 +381,28 @@ mod test {
     #[test]
     fn query_clip() {
         let mut track = AutomationTrack::new();
-        track.add_clip(AutomationClip::Constant(0.23), 10, 10);
-        track.add_clip(AutomationClip::Constant(0.67), 30, 10);
+        track.add_clip(AutomationClip::Constant(0.23), 10.0..20.0);
+        track.add_clip(AutomationClip::Constant(0.67), 30.0..40.0);
 
         // Inside first clip
-        assert_matches!(track.query_clip(15), Some(AutomationClip::Constant(0.23)));
+        assert_matches!(track.query_clip(15.0), Some(AutomationClip::Constant(0.23)));
 
         // Inside gap
-        assert!(track.query_clip(25).is_none());
+        assert!(track.query_clip(25.0).is_none());
 
         // Inside second clip
-        assert_matches!(track.query_clip(35), Some(AutomationClip::Constant(0.67)));
+        assert_matches!(track.query_clip(35.0), Some(AutomationClip::Constant(0.67)));
 
         // Before first clip
-        assert!(track.query_clip(5).is_none());
+        assert!(track.query_clip(5.0).is_none());
 
-        assert_matches!(track.query_clip(10), Some(AutomationClip::Constant(0.23)));
+        assert_matches!(track.query_clip(10.0), Some(AutomationClip::Constant(0.23)));
 
-        assert!(track.query_clip(20).is_none());
+        assert!(track.query_clip(20.0).is_none());
     }
 
-    fn assert_close(lhs: f32, rhs: f32) {
-        const EPS: f32 = 1e-6;
+    fn assert_close(lhs: Real, rhs: Real) {
+        const EPS: Real = 1e-9;
 
         assert!((lhs - rhs).abs() <= EPS)
     }
@@ -416,44 +410,38 @@ mod test {
     #[test]
     fn sample1() {
         let track = AutomationTrack::from_iter([
-            (
-                0..10,
-                Lfo::new(LfoShape::Saw, 10.try_into().unwrap()).into(),
-            ),
-            (
-                20..30,
-                Lfo::new(LfoShape::Square, 10.try_into().unwrap()).into(),
-            ),
+            (0.0..10.0, Lfo::new(LfoShape::Saw, 10.0).into()),
+            (20.0..30.0, Lfo::new(LfoShape::Square, 10.0).into()),
         ]);
 
         for t in 0..10 {
-            assert_close(track.query_value(t, f32::NAN), t as f32 / 10.0);
+            assert_close(track.query_value(t as Real, Real::NAN), t as Real / 10.0);
         }
 
         for t in 10..20 {
-            assert_close(track.query_value(t, f32::NAN), 0.9);
+            assert_close(track.query_value(t as Real, Real::NAN), 0.9);
         }
 
         for t in 20..25 {
-            assert_eq!(track.query_value(t, f32::NAN), 0.0);
+            assert_eq!(track.query_value(t as Real, Real::NAN), 0.0);
         }
 
         for t in 25..30 {
-            assert_eq!(track.query_value(t, f32::NAN), 1.0);
+            assert_eq!(track.query_value(t as Real, Real::NAN), 1.0);
         }
     }
 
     #[test]
     fn sample2() {
         let track = AutomationTrack::from_iter([
-            (10..20, AutomationClip::Constant(0.23)),
-            (30..40, AutomationClip::Constant(0.67)),
+            (10.0..20.0, AutomationClip::Constant(0.23)),
+            (30.0..40.0, AutomationClip::Constant(0.67)),
         ]);
 
-        assert_eq!(track.query_value(0, f32::NAN), 0.23);
-        assert_eq!(track.query_value(15, f32::NAN), 0.23);
-        assert_eq!(track.query_value(25, f32::NAN), 0.23);
-        assert_eq!(track.query_value(35, f32::NAN), 0.67);
-        assert_eq!(track.query_value(45, f32::NAN), 0.67);
+        assert_eq!(track.query_value(0.0, Real::NAN), 0.23);
+        assert_eq!(track.query_value(15.0, Real::NAN), 0.23);
+        assert_eq!(track.query_value(25.0, Real::NAN), 0.23);
+        assert_eq!(track.query_value(35.0, Real::NAN), 0.67);
+        assert_eq!(track.query_value(45.0, Real::NAN), 0.67);
     }
 }
