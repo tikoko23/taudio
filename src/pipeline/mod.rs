@@ -416,6 +416,8 @@ impl Pipeline {
             }
         }
 
+        self.current_sample_offset += n_samples as u64;
+
         Ok(())
     }
 }
