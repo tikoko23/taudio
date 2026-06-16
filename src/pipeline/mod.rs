@@ -87,7 +87,7 @@
 //! [`Osc`]: crate::sources::Osc
 //! [`SampleSink`]: crate::sinks::SampleSink
 
-use std::cell::RefCell;
+use std::{cell::RefCell, fmt::Display};
 
 use crate::{
     automation::AutomationTimeline,
@@ -116,6 +116,12 @@ incremental_id! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
     #[repr(transparent)]
     pub struct NodeId(u32) impl { NumericId };
+}
+
+impl Display for NodeId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:08X}", self.0.get())
+    }
 }
 
 incremental_id! {

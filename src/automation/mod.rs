@@ -6,6 +6,17 @@ pub use clip::*;
 pub use timeline::*;
 pub use track::*;
 
+/// Constructs a parameter name string from a node name (`&str`), an id ([`NodeId`]) and
+/// a parameter name (`&str`).
+///
+/// [`NodeId`]: crate::node::NodeId
+#[macro_export]
+macro_rules! paramname {
+    ($node_name:expr, $id:expr, $param_name:expr) => {
+        ::std::format!("{}-{}.{}", $node_name, $id, $param_name)
+    };
+}
+
 /// Normalizes a value into seconds according to the given sample rate.
 #[inline]
 pub fn normalize(sample_rate: u64, value: u64) -> f64 {
