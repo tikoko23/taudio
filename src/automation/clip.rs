@@ -4,6 +4,7 @@ use smallvec::{SmallVec, smallvec};
 
 use crate::Real;
 
+/// A value at a specific offset.
 #[derive(Debug, Clone, Copy)]
 pub struct ControlPoint {
     value: Real,
@@ -192,6 +193,9 @@ pub enum LfoShape {
     Saw,
 }
 
+/// Low frequency oscillator.
+///
+/// Oscillates between 0 and 1 using different shaping functions.
 #[derive(Debug, Clone)]
 pub struct Lfo {
     kind: LfoShape,
@@ -248,6 +252,7 @@ impl Lfo {
     }
 }
 
+/// A single unit of automation.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum AutomationClip {

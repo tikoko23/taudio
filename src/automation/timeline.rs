@@ -6,6 +6,7 @@ use crate::{
 };
 
 incremental_id! {
+    /// Handle to an automation track in an [`AutomationTimeline`].
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub struct AutomationId(u32) impl { NumericId };
 }
@@ -15,6 +16,21 @@ struct TrackData {
     track: AutomationTrack,
 }
 
+/// A group of automation tracks.
+///
+/// ```no_run
+/// # use taudio::automation::AutomationTimeline;
+/// #
+/// let mut timeline = AutomationTimeline::new();
+///
+/// let frequency_track = timeline.register(...);
+/// let volume_track = timeline.register(...);
+///
+/// // ...
+///
+/// let frequency = timeline.query_value(frequency_track, 23.0);
+/// let volume = timeline.query_value(volume_track, 37.0);
+/// ```
 #[derive(Debug, Clone)]
 pub struct AutomationTimeline {
     tracks: IdContainer<Vec<TrackData>>,
@@ -28,6 +44,7 @@ impl Default for AutomationTimeline {
 }
 
 impl AutomationTimeline {
+    /// Constructs an empty timeline.
     #[inline]
     pub fn new() -> Self {
         Self {
@@ -36,8 +53,6 @@ impl AutomationTimeline {
     }
 
     /// Registers a new automation parameter with the given name.
-    ///
-    /// If the registered track is sampled when empty, the default value will be used.
     pub fn register(&mut self, track: AutomationTrack) -> AutomationId {
         self.tracks.push_id(TrackData { track })
     }
