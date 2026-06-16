@@ -19,7 +19,7 @@ fn sample_clip(clip: &ClipData, offset: Real) -> Real {
         return clip.clip.sample(0.0);
     }
 
-    let clamp = Real::clamp(offset, clip.range.start, clip.range.end - 1.0);
+    let clamp = Real::clamp(offset, clip.range.start, clip.range.end);
     let local = clamp - clip.range.start;
 
     clip.clip.sample(local)

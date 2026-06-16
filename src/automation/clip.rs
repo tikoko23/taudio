@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use smallvec::SmallVec;
+use smallvec::{SmallVec, smallvec};
 
 use crate::Real;
 
@@ -53,7 +53,34 @@ impl ControlPoint {
 #[repr(transparent)]
 pub struct ControlPoints(SmallVec<[ControlPoint; 4]>);
 
+impl FromIterator<ControlPoint> for ControlPoints {
+    fn from_iter<T>(iter: T) -> Self
+    where
+        T: IntoIterator<Item = ControlPoint>,
+    {
+        let mut points = ControlPoints::new();
+
+        for point in iter.into_iter() {
+            points.add_point(point);
+        }
+
+        points
+    }
+}
+
+impl Default for ControlPoints {
+    #[inline]
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ControlPoints {
+    #[inline]
+    pub fn new() -> Self {
+        Self(smallvec![])
+    }
+
     /// Adds a point to the end of the control point list.
     ///
     /// # Panics

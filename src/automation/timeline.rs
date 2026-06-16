@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::{
     Real,
     automation::AutomationTrack,
@@ -15,13 +13,11 @@ incremental_id! {
 #[derive(Debug, Clone)]
 struct TrackData {
     track: AutomationTrack,
-    default_value: Real,
 }
 
 #[derive(Debug, Clone)]
 pub struct AutomationTimeline {
     tracks: IdContainer<Vec<TrackData>>,
-    id_by_name: HashMap<String, AutomationId>,
 }
 
 impl Default for AutomationTimeline {
@@ -36,27 +32,14 @@ impl AutomationTimeline {
     pub fn new() -> Self {
         Self {
             tracks: vec![].into(),
-            id_by_name: HashMap::new(),
         }
     }
 
     /// Registers a new automation parameter with the given name.
     ///
     /// If the registered track is sampled when empty, the default value will be used.
-    ///
-    /// # Panics
-    /// Panics if the given name has previously been used to register an id.
-    pub fn register(&mut self, name: impl Into<String>, default_value: Real) -> AutomationId {
-        let id = self.tracks.push_id(TrackData {
-            default_value,
-            track: AutomationTrack::new(),
-        });
-
-        if self.id_by_name.insert(name.into(), id).is_some() {
-            panic!("an automation track with the same name already exists");
-        }
-
-        id
+    pub fn register(&mut self, track: AutomationTrack) -> AutomationId {
+        self.tracks.push_id(TrackData { track })
     }
 
     pub fn get_track(&self, id: AutomationId) -> Option<&AutomationTrack> {
@@ -65,10 +48,6 @@ impl AutomationTimeline {
 
     pub fn get_track_mut(&mut self, id: AutomationId) -> Option<&mut AutomationTrack> {
         self.tracks.get_mut(id.as_index()).map(|t| &mut t.track)
-    }
-
-    pub fn get_id_by_name(&self, name: &str) -> Option<AutomationId> {
-        self.id_by_name.get(name).copied()
     }
 
     /// Queries the value of the automation associated with the given id at the specified
@@ -80,7 +59,7 @@ impl AutomationTimeline {
     pub fn query_value(&self, id: AutomationId, offset: Real) -> Real {
         let data = &self.tracks[id];
 
-        data.track.query_value(offset, data.default_value)
+        data.track.query_value(offset, Real::NAN)
     }
 }
 #[cfg(test)]
@@ -90,46 +69,16 @@ mod test {
     use super::*;
 
     #[test]
-    fn register_and_get_by_name() {
-        let mut timeline = AutomationTimeline::new();
-
-        let volume_id = timeline.register("Volume", 1.0);
-        let pan_id = timeline.register("Pan", 0.5);
-
-        // Verify they generate distinct IDs
-        assert_ne!(volume_id, pan_id);
-
-        // Verify we can fetch the IDs back by their string names
-        assert_eq!(timeline.get_id_by_name("Volume"), Some(volume_id));
-        assert_eq!(timeline.get_id_by_name("Pan"), Some(pan_id));
-
-        // Verify querying a non-existent track returns None
-        assert_eq!(timeline.get_id_by_name("Pitch"), None);
-    }
-
-    #[test]
-    #[should_panic(expected = "an automation track with the same name already exists")]
-    fn register_duplicate_name_panics() {
-        let mut timeline = AutomationTimeline::new();
-
-        timeline.register("Cutoff", 1.0);
-        // This second registration should trigger the panic guard
-        timeline.register("Cutoff", 1.0);
-    }
-
-    #[test]
     fn get_track_and_mut() {
         let mut timeline = AutomationTimeline::new();
-        let id = timeline.register("Filter", 0.5);
+        let id = timeline.register(AutomationTrack::new());
 
-        // Test immutable retrieval
         let track = timeline.get_track(id);
         assert!(
             track.is_some(),
             "Track should exist for a newly registered ID"
         );
 
-        // Test mutable retrieval
         let track_mut = timeline.get_track_mut(id);
         assert!(
             track_mut.is_some(),
