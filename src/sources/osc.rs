@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use crate::{
     Real,
-    automation::{CurveMapping, Parameter},
+    automation::{CurveMapping, IntoParameter, Parameter},
     buffer::SampleChannels,
     err::AudioError,
     node::{AudioNode, AudioSource, AudioSourceCfg, AudioSourceInfo, SamplingContext},
@@ -16,7 +16,7 @@ use crate::{
 /// # use taudio::sources::Osc;
 /// use taudio::{waveform, automation::Parameter};
 ///
-/// let osc = Osc::new(waveform::Sine, Parameter::Constant(440.0), Parameter::Constant(1.0), 1);
+/// let osc = Osc::new(waveform::Sine, 440.0, 1.0, 1);
 /// ```
 #[derive(Debug, Clone)]
 pub struct Osc<W: WaveSource + Debug + Clone + 'static> {
@@ -31,15 +31,15 @@ impl<W: WaveSource + Debug + Clone + 'static> Osc<W> {
     #[inline]
     pub fn new(
         source: W,
-        freq: Parameter<Real, CurveMapping>,
-        amp: Parameter<Real, CurveMapping>,
+        freq: impl IntoParameter<Real, CurveMapping>,
+        amp: impl IntoParameter<Real, CurveMapping>,
         num_outputs: usize,
     ) -> Self {
         Self {
             phase: 0.0,
             source,
-            freq,
-            amp,
+            freq: freq.into_parameter(),
+            amp: amp.into_parameter(),
             num_outputs,
         }
     }

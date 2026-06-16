@@ -57,12 +57,7 @@
 //!     },
 //! };
 //!
-//! let oscillator = Osc::new(
-//!     waveform::Sine,
-//!     Parameter::Constant(440.0),
-//!     Parameter::Constant(1.0),
-//!     1
-//! );
+//! let oscillator = Osc::new(waveform::Sine, 440.0, 1.0, 1);
 //!
 //! let sample_sink = SampleSink::new(sample::Int16);
 //!
