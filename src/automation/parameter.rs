@@ -3,6 +3,35 @@ use crate::{
     automation::{AutomationId, AutomationTimeline},
 };
 
+pub trait IntoParameter<T, M>
+where
+    T: Copy,
+    M: Mapping<Value = T>,
+{
+    fn into_parameter(self) -> Parameter<T, M>;
+}
+
+impl<T, M> IntoParameter<T, M> for T
+where
+    T: Copy,
+    M: Mapping<Value = T>,
+{
+    #[inline]
+    fn into_parameter(self) -> Parameter<T, M> {
+        Parameter::Constant(self)
+    }
+}
+
+impl<T, M> IntoParameter<T, M> for Parameter<T, M>
+where
+    T: Copy,
+    M: Mapping<Value = T>,
+{
+    fn into_parameter(self) -> Parameter<T, M> {
+        self
+    }
+}
+
 /// A controllable parameter with a configurable mapping.
 #[derive(Debug, Clone, Copy)]
 pub enum Parameter<T, M>
