@@ -23,6 +23,7 @@ pub struct Osc<W: WaveSource + Debug + Clone + 'static> {
     source: W,
     freq: Parameter<Real, CurveMapping>,
     amp: Parameter<Real, CurveMapping>,
+    phase: Real,
     num_outputs: usize,
 }
 
@@ -35,6 +36,7 @@ impl<W: WaveSource + Debug + Clone + 'static> Osc<W> {
         num_outputs: usize,
     ) -> Self {
         Self {
+            phase: 0.0,
             source,
             freq,
             amp,
@@ -66,12 +68,17 @@ impl<W: WaveSource + Debug + Clone + 'static> AudioSource for Osc<W> {
         for sample in 0..ctx.batch_size() {
             let t = ctx.time_of(sample);
             let f = self.freq.sample(t, ctx.automations);
-            let a = self.amp.sample(t, ctx.automations) * self.source.sample(f, t);
+            let a = self.amp.sample(t, ctx.automations);
+
+            let out = a * self.source.sample(1.0, self.phase);
+
+            self.phase += f / ctx.get_samples_per_second() as Real;
+            self.phase %= 1.0;
 
             for i in 0..self.num_outputs {
                 let mut chan = output.get_channel_mut(i);
 
-                chan[sample] = a;
+                chan[sample] = out;
             }
         }
 
