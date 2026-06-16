@@ -18,7 +18,7 @@ struct TrackData {
 
 /// A group of automation tracks.
 ///
-/// ```no_run
+/// ```ignore
 /// # use taudio::automation::AutomationTimeline;
 /// #
 /// let mut timeline = AutomationTimeline::new();

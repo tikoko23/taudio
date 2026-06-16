@@ -51,9 +51,19 @@
 //!     waveform,
 //!     sample,
 //!     pipeline::PipelineBuilder,
+//!     automation::{
+//!         AutomationTimeline,
+//!         Parameter,
+//!     },
 //! };
 //!
-//! let oscillator = Osc::new(waveform::Sine, 440.0, 1.0, 1);
+//! let oscillator = Osc::new(
+//!     waveform::Sine,
+//!     Parameter::Constant(440.0),
+//!     Parameter::Constant(1.0),
+//!     1
+//! );
+//!
 //! let sample_sink = SampleSink::new(sample::Int16);
 //!
 //! let mut builder = PipelineBuilder::default();
@@ -64,7 +74,7 @@
 //! let mut pipeline = builder.build()?;
 //!
 //! // Sample one second worth of audio.
-//! pipeline.sample(44100)?;
+//! pipeline.sample(44100, &AutomationTimeline::new())?;
 //!
 //! let sink: &mut SampleSink<sample::Int16> = pipeline
 //!     .sinks_mut()

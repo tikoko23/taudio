@@ -14,9 +14,9 @@ use crate::{
 /// # Example
 /// ```
 /// # use taudio::sources::Osc;
-/// use taudio::waveform;
+/// use taudio::{waveform, automation::Parameter};
 ///
-/// let osc = Osc::new(waveform::Sine, 440.0, 1.0, 1);
+/// let osc = Osc::new(waveform::Sine, Parameter::Constant(440.0), Parameter::Constant(1.0), 1);
 /// ```
 #[derive(Debug, Clone)]
 pub struct Osc<W: WaveSource + Debug + Clone + 'static> {
