@@ -9,9 +9,10 @@ use crate::{
 /// where both [`Parameter`] values and constant values can be provided.
 ///
 /// ```
+/// # use taudio::id::IncrementalId;
 /// # let id = taudio::automation::AutomationId::FIRST;
 /// use taudio::{
-///     automation::{CurveMapping, Parameter},
+///     automation::{CurveMapping, Parameter, IntoParameter},
 ///     Real,
 /// };
 ///
