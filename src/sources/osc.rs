@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use crate::{
     Real,
+    automation::{CurveMapping, Parameter},
     buffer::SampleChannels,
     err::AudioError,
     node::{AudioNode, AudioSource, AudioSourceCfg, AudioSourceInfo, SamplingContext},
@@ -20,18 +21,23 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Osc<W: WaveSource + Debug + Clone + 'static> {
     source: W,
-    freq: Real,
-    amplitude: Real,
+    freq: Parameter<Real, CurveMapping>,
+    amp: Parameter<Real, CurveMapping>,
     num_outputs: usize,
 }
 
 impl<W: WaveSource + Debug + Clone + 'static> Osc<W> {
     #[inline]
-    pub fn new(source: W, freq: Real, amplitude: Real, num_outputs: usize) -> Self {
+    pub fn new(
+        source: W,
+        freq: Parameter<Real, CurveMapping>,
+        amp: Parameter<Real, CurveMapping>,
+        num_outputs: usize,
+    ) -> Self {
         Self {
             source,
             freq,
-            amplitude,
+            amp,
             num_outputs,
         }
     }
@@ -59,7 +65,8 @@ impl<W: WaveSource + Debug + Clone + 'static> AudioSource for Osc<W> {
     ) -> Result<(), AudioError> {
         for sample in 0..ctx.batch_size() {
             let t = ctx.time_of(sample);
-            let a = self.amplitude * self.source.sample(self.freq, t);
+            let f = self.freq.sample(t, ctx.automations);
+            let a = self.amp.sample(t, ctx.automations) * self.source.sample(f, t);
 
             for i in 0..self.num_outputs {
                 let mut chan = output.get_channel_mut(i);

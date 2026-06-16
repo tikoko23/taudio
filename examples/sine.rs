@@ -1,7 +1,7 @@
 use std::{error::Error, fs::File, io::BufWriter};
 
 use taudio::{
-    automation::AutomationTimeline,
+    automation::{AutomationTimeline, Parameter},
     pipeline::PipelineBuilder,
     sample::{self},
     sinks::SampleSink,
@@ -11,7 +11,12 @@ use taudio::{
 };
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let osc = Osc::new(waveform::Sine, 440.0, 1.0, 1);
+    let osc = Osc::new(
+        waveform::Sine,
+        Parameter::Constant(440.0),
+        Parameter::Constant(1.0),
+        1,
+    );
 
     let mut builder = PipelineBuilder::default();
 

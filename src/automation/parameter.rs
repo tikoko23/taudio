@@ -1,76 +1,118 @@
-use std::ops::RangeInclusive;
+use crate::{
+    Real,
+    automation::{AutomationId, AutomationTimeline},
+};
 
-use crate::Real;
+#[derive(Debug, Clone, Copy)]
+pub enum Parameter<T, M>
+where
+    T: Copy,
+    M: Mapping<Value = T>,
+{
+    Automated { id: AutomationId, mapping: M },
+    Constant(T),
+}
 
-/// Wrapper around [`RangeInclusive`] which forbids empty ranges.
-#[derive(Debug, Clone)]
-#[repr(transparent)]
-pub struct Parameter(RangeInclusive<Real>);
+impl<T, M> Parameter<T, M>
+where
+    T: Copy,
+    M: Mapping<Value = T>,
+{
+    pub fn sample(&self, time: Real, timeline: &AutomationTimeline) -> T {
+        match self {
+            Self::Constant(x) => *x,
+            Self::Automated { id, mapping } => {
+                let a = timeline.query_value(*id, time);
 
-impl Parameter {
-    /// Constructs a new parameter.
-    pub fn new(range: RangeInclusive<Real>) -> Self {
-        assert!(range.end() >= range.start(), "range cannot be empty");
-
-        Self(range)
-    }
-
-    #[inline]
-    pub fn new_single_value(value: Real) -> Self {
-        Self(value..=value)
-    }
-
-    #[inline]
-    pub fn is_single_valued(&self) -> bool {
-        self.start() == self.end()
-    }
-
-    #[inline]
-    pub const fn start(&self) -> Real {
-        *self.0.start()
-    }
-
-    #[inline]
-    pub const fn end(&self) -> Real {
-        *self.0.end()
-    }
-
-    #[inline]
-    pub fn into_range(self) -> RangeInclusive<Real> {
-        self.into()
+                mapping.map(a)
+            }
+        }
     }
 }
 
-impl From<Parameter> for RangeInclusive<Real> {
+pub trait Mapping {
+    type Value: Copy;
+
+    /// Returns the value that `0` is mapped to.
     #[inline]
-    fn from(value: Parameter) -> Self {
-        value.0
+    fn zero(&self) -> Self::Value {
+        let (lo, _) = self.endpoints();
+
+        lo
+    }
+
+    /// Returns the value that `1` is mapped to.
+    #[inline]
+    fn one(&self) -> Self::Value {
+        let (_, hi) = self.endpoints();
+
+        hi
+    }
+
+    fn endpoints(&self) -> (Self::Value, Self::Value);
+    fn map(&self, x: Real) -> Self::Value;
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum CurveMapping {
+    Linear(Real, Real),
+    Exp2(Real, Real),
+}
+
+impl Mapping for CurveMapping {
+    type Value = Real;
+
+    fn endpoints(&self) -> (Real, Real) {
+        match *self {
+            Self::Linear(a, b) => (a, b),
+            Self::Exp2(a, b) => (a, b),
+        }
+    }
+
+    fn map(&self, x: Real) -> Real {
+        match *self {
+            Self::Linear(a, b) => (b - a) * x + a,
+            Self::Exp2(a, b) => (b / a).powf(x) * a,
+        }
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::automation::Parameter;
+    use crate::{
+        Real,
+        automation::{CurveMapping, Mapping},
+    };
 
-    #[test]
-    fn param_ok() {
-        let p = Parameter::new(23.0..=37.0);
+    static NOTE_FREQUENCIES: [Real; 13] = [
+        220.0,
+        233.08188075904496,
+        246.94165062806206,
+        261.6255653005986,
+        277.1826309768721,
+        293.6647679174076,
+        311.1269837220809,
+        329.6275569128699,
+        349.2282314330039,
+        369.9944227116344,
+        391.99543598174927,
+        415.3046975799451,
+        440.0,
+    ];
 
-        assert_eq!(p.start(), 23.0);
-        assert_eq!(p.end(), 37.0);
-        assert_eq!(p.into_range(), 23.0..=37.0);
+    fn assert_close(x: Real, y: Real) {
+        const EPS: Real = 1e-9;
+
+        assert!((x - y).abs() <= EPS);
     }
 
     #[test]
-    fn param_eq() {
-        let p = Parameter::new(0.0..=0.0);
+    fn mapping_exp() {
+        let m = CurveMapping::Exp2(220.0, 440.0);
 
-        assert_eq!(p.into_range(), 0.0..=0.0);
-    }
-
-    #[test]
-    #[should_panic = "range cannot be empty"]
-    fn param_bad() {
-        let _ = Parameter::new(1.0..=0.0);
+        for (i, freq) in NOTE_FREQUENCIES.into_iter().enumerate() {
+            let norm = i as Real / 12.0;
+            assert_close(m.map(norm), freq);
+        }
     }
 }

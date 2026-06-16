@@ -1,8 +1,10 @@
 mod clip;
+mod parameter;
 mod timeline;
 mod track;
 
 pub use clip::*;
+pub use parameter::*;
 pub use timeline::*;
 pub use track::*;
 
