@@ -34,7 +34,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         waveform::Sine,
         Parameter::Automated {
             id: freq_param,
-            mapping: CurveMapping::Exp2(220.0, 440.0),
+            mapping: CurveMapping::Exp(220.0, 440.0),
         },
         Parameter::Constant(1.0),
         1,

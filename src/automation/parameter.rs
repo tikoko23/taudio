@@ -70,7 +70,7 @@ pub trait Mapping {
 /// # use taudio::{Real, automation::{CurveMapping, Mapping}};
 /// #
 /// // Use parameter mappings to generate note frequencies.
-/// let mapping = CurveMapping::Exp2(220.0, 440.0);
+/// let mapping = CurveMapping::Exp(220.0, 440.0);
 /// let note_names = [
 ///     "A3", "A#3", "B3", "C4", "C#4", "D4",
 ///     "D#4", "E4", "F4", "F#4", "G4", "G#4", "A4"
@@ -89,7 +89,7 @@ pub enum CurveMapping {
     Linear(Real, Real),
 
     /// Interpolates between the two values with an exponential curve.
-    Exp2(Real, Real),
+    Exp(Real, Real),
 }
 
 impl Mapping for CurveMapping {
@@ -98,14 +98,14 @@ impl Mapping for CurveMapping {
     fn endpoints(&self) -> (Real, Real) {
         match *self {
             Self::Linear(a, b) => (a, b),
-            Self::Exp2(a, b) => (a, b),
+            Self::Exp(a, b) => (a, b),
         }
     }
 
     fn map(&self, x: Real) -> Real {
         match *self {
             Self::Linear(a, b) => (b - a) * x + a,
-            Self::Exp2(a, b) => (b / a).powf(x) * a,
+            Self::Exp(a, b) => (b / a).powf(x) * a,
         }
     }
 }
@@ -141,7 +141,7 @@ mod test {
 
     #[test]
     fn mapping_exp() {
-        let m = CurveMapping::Exp2(220.0, 440.0);
+        let m = CurveMapping::Exp(220.0, 440.0);
 
         for (i, freq) in NOTE_FREQUENCIES.into_iter().enumerate() {
             let norm = i as Real / 12.0;
