@@ -1,4 +1,4 @@
-use std::num::NonZero;
+use std::{cell::RefCell, num::NonZero};
 
 use crate::{
     automation::AutomationTimeline,
@@ -112,12 +112,13 @@ impl PipelineBuilder {
         &mut self,
         mut src: Box<dyn AudioSource>,
     ) -> Result<NodeId, AudioError> {
+        let id = self.nodes.next_id();
+
         let src_info = src.setup(&AudioSourceCfg {
             sample_rate: self.opts.sample_rate.get(),
-            automations: &mut self.automation,
+            automations: RefCell::new(&mut self.automation),
+            id,
         })?;
-
-        let id = self.nodes.next_id();
 
         Ok(self.nodes.push_id(PipelineAudioNode::Source {
             node: src,
@@ -149,13 +150,14 @@ impl PipelineBuilder {
     {
         let inputs = inputs.get_inputs();
 
+        let id = self.nodes.next_id();
+
         let proc_info = proc.setup(&AudioProcessorCfg {
             sample_rate: self.opts.sample_rate.get(),
             num_inputs: inputs.len(),
-            automations: &mut self.automation,
+            automations: RefCell::new(&mut self.automation),
+            id,
         })?;
-
-        let id = self.nodes.next_id();
 
         Ok(self.nodes.push_id(PipelineAudioNode::Processor {
             node: proc,
@@ -188,13 +190,14 @@ impl PipelineBuilder {
     {
         let inputs = inputs.get_inputs();
 
+        let id = self.nodes.next_id();
+
         let sink_info = sink.setup(&AudioSinkCfg {
             num_inputs: inputs.len(),
             sample_rate: self.opts.sample_rate.get(),
-            automations: &mut self.automation,
+            automations: RefCell::new(&mut self.automation),
+            id,
         })?;
-
-        let id = self.nodes.next_id();
 
         Ok(self.nodes.push_id(PipelineAudioNode::Sink {
             node: sink,
