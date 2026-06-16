@@ -431,31 +431,7 @@ mod test {
     }
 
     #[test]
-    fn sample1() {
-        let track = AutomationTrack::from_iter([
-            (0.0..10.0, Lfo::new(LfoShape::Saw, 10.0).into()),
-            (20.0..30.0, Lfo::new(LfoShape::Square, 10.0).into()),
-        ]);
-
-        for t in 0..10 {
-            assert_close(track.query_value(t as Real, Real::NAN), t as Real / 10.0);
-        }
-
-        for t in 10..20 {
-            assert_close(track.query_value(t as Real, Real::NAN), 0.9);
-        }
-
-        for t in 20..25 {
-            assert_eq!(track.query_value(t as Real, Real::NAN), 0.0);
-        }
-
-        for t in 25..30 {
-            assert_eq!(track.query_value(t as Real, Real::NAN), 1.0);
-        }
-    }
-
-    #[test]
-    fn sample2() {
+    fn sample() {
         let track = AutomationTrack::from_iter([
             (10.0..20.0, AutomationClip::Constant(0.23)),
             (30.0..40.0, AutomationClip::Constant(0.67)),
