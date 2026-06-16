@@ -145,6 +145,13 @@ impl SamplingContext<'_> {
     pub fn batch_size(&self) -> usize {
         self.num_samples as usize
     }
+
+    /// Forwards the call to [`AutomationTimeline::query_value`]. See its documentation for
+    /// more details.
+    #[inline]
+    pub fn query_automation(&self, id: AutomationId, offset: Real) -> Real {
+        self.automations.query_value(id, offset)
+    }
 }
 
 pub trait AudioNodeReflection: Any {
