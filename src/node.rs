@@ -1,6 +1,11 @@
 use std::{any::Any, fmt::Debug};
 
-use crate::{Real, buffer::SampleChannels, err::AudioError};
+use crate::{
+    Real,
+    automation::{AutomationId, AutomationTimeline},
+    buffer::SampleChannels,
+    err::AudioError,
+};
 
 macro_rules! boxed_dupe {
     ($($vis:vis trait $TraitName:ident for<dyn $DynName:path> { ... })*) => {
@@ -31,9 +36,49 @@ boxed_dupe! {
     pub trait AudioProcessorClone for<dyn AudioProcessor> { ... }
 }
 
+pub trait AutomationRegisterExt {
+    /// Forwards the call to [`AutomationTimeline::register`]. See its documentation for details.
+    fn register_automation(&mut self, name: impl Into<String>, default_value: Real)
+    -> AutomationId;
+}
+
+impl AutomationRegisterExt for AudioSourceCfg<'_> {
+    #[inline]
+    fn register_automation(
+        &mut self,
+        name: impl Into<String>,
+        default_value: Real,
+    ) -> AutomationId {
+        self.automations.register(name, default_value)
+    }
+}
+
+impl AutomationRegisterExt for AudioProcessorCfg<'_> {
+    #[inline]
+    fn register_automation(
+        &mut self,
+        name: impl Into<String>,
+        default_value: Real,
+    ) -> AutomationId {
+        self.automations.register(name, default_value)
+    }
+}
+
+impl AutomationRegisterExt for AudioSinkCfg<'_> {
+    #[inline]
+    fn register_automation(
+        &mut self,
+        name: impl Into<String>,
+        default_value: Real,
+    ) -> AutomationId {
+        self.automations.register(name, default_value)
+    }
+}
+
 #[derive(Debug)]
-pub struct AudioSourceCfg {
+pub struct AudioSourceCfg<'a> {
     pub sample_rate: u32,
+    pub(crate) automations: &'a mut AutomationTimeline,
 }
 
 #[derive(Debug, Clone)]
@@ -42,18 +87,20 @@ pub struct AudioSourceInfo {
 }
 
 #[derive(Debug)]
-pub struct AudioSinkCfg {
+pub struct AudioSinkCfg<'a> {
     pub num_inputs: usize,
     pub sample_rate: u32,
+    pub(crate) automations: &'a mut AutomationTimeline,
 }
 
 #[derive(Debug, Clone)]
 pub struct AudioSinkInfo {}
 
-#[derive(Debug, Clone)]
-pub struct AudioProcessorCfg {
+#[derive(Debug)]
+pub struct AudioProcessorCfg<'a> {
     pub sample_rate: u32,
     pub num_inputs: usize,
+    pub(crate) automations: &'a mut AutomationTimeline,
 }
 
 #[derive(Debug, Clone)]
@@ -62,13 +109,14 @@ pub struct AudioProcessorInfo {
 }
 
 #[derive(Debug)]
-pub struct SamplingContext {
+pub struct SamplingContext<'a> {
     pub(crate) sample_rate: u32,
     pub(crate) batch_begin: u64,
     pub(crate) num_samples: u32,
+    pub(crate) automations: &'a AutomationTimeline,
 }
 
-impl SamplingContext {
+impl SamplingContext<'_> {
     #[inline]
     pub fn get_samples_per_second(&self) -> u32 {
         self.sample_rate

@@ -90,6 +90,7 @@
 use std::cell::RefCell;
 
 use crate::{
+    automation::AutomationTimeline,
     buffer::{AudioBuffer, SampleChannels},
     err::AudioError,
     id::{IdContainer, NumericId},
@@ -374,6 +375,7 @@ impl Pipeline {
                 sample_rate: self.opts.sample_rate.get(),
                 batch_begin: self.current_sample_offset,
                 num_samples: n_samples,
+                automations: &AutomationTimeline::new(),
             };
 
             match node {

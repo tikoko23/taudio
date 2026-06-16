@@ -1,4 +1,4 @@
-use std::ops::{Range, RangeBounds};
+use std::ops::Range;
 
 use crate::{Real, automation::AutomationClip};
 
@@ -105,8 +105,9 @@ impl AutomationTrack {
     /// Adds a new clip to the end of the track.
     ///
     /// # Panics
-    /// Panics if the new track violates the [overlap constraint](AutomationTrack#overlaps).
-    /// Panics if the new track violates the [time ordering constraint](AutomationTrack#time-ordering).
+    /// - Panics if the
+    /// - Panics if the new track violates the [overlap constraint](AutomationTrack#overlaps).
+    /// - Panics if the new track violates the [time ordering constraint](AutomationTrack#time-ordering).
     pub fn add_clip(&mut self, clip: AutomationClip, span: Range<Real>) {
         assert!(span.start.is_finite(), "clip start time must be finite");
         assert!(span.start >= 0.0, "clip start time must be positive");
@@ -127,7 +128,7 @@ impl AutomationTrack {
     }
 
     /// # Panics
-    /// Panics if the index is out of range.
+    /// - Panics if the index is out of range.
     #[inline]
     pub fn remove_clip(&mut self, index: usize) -> AutomationClip {
         self.clips.remove(index).clip
@@ -142,9 +143,15 @@ impl AutomationTrack {
     /// Resizes a clip from the end (i.e. moves the endpoint).
     ///
     /// # Panics
-    /// Panics if the index is out of range.
-    /// Panics if the [overlap constraint](AutomationClip#overlaps) is violated.
+    /// - Panics if the new duration is non-finite or negative.
+    /// - Panics if the index is out of range.
+    /// - Panics if the [overlap constraint](AutomationClip#overlaps) is violated.
     pub fn resize_clip(&mut self, index: usize, new_duration: Real) {
+        assert!(
+            new_duration.is_finite() && new_duration >= 0.0,
+            "duration cannot be non-finite or negative"
+        );
+
         let next_clip = self.clips.get_mut(index + 1);
 
         match next_clip {
@@ -171,9 +178,15 @@ impl AutomationTrack {
     /// Repositions a clip from its starting point.
     ///
     /// # Panics
-    /// Panics if the index is out of range.
-    /// Panics if the [overlap constraint](AutomationClip#overlaps) is violated.
+    /// - Panics if the new offset is non-finite or negative.
+    /// - Panics if the index is out of range.
+    /// - Panics if the [overlap constraint](AutomationClip#overlaps) is violated.
     pub fn reposition_clip(&mut self, index: usize, new_offset: Real) {
+        assert!(
+            new_offset.is_finite() && new_offset >= 0.0,
+            "offset cannot be non-finite or negative"
+        );
+
         let new_position = self.clips.partition_point(|c| c.range.end <= new_offset);
 
         if let Some(next) = self.clips.get(new_position + 1) {
@@ -200,6 +213,11 @@ impl AutomationTrack {
 
     /// Returns the clip in which the given sample offset lies, or [`None`].
     pub fn query_clip(&self, offset: Real) -> Option<&AutomationClip> {
+        assert!(
+            offset.is_finite() && offset >= 0.0,
+            "offset cannot be non-finite or negative"
+        );
+
         let split_index = self.clips.partition_point(|c| c.range.end <= offset);
 
         if split_index >= self.clips.len() {
@@ -238,6 +256,11 @@ impl AutomationTrack {
     /// - `Q3` returns the corresponding value in Clip B.
     /// - `Q4` returns the value at `t = 40`.
     pub fn query_value(&self, offset: Real, fallback: Real) -> Real {
+        assert!(
+            offset.is_finite() && offset >= 0.0,
+            "offset cannot be non-finite or negative"
+        );
+
         let Some(first) = self.clips.first() else {
             return fallback;
         };

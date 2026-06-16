@@ -1,4 +1,4 @@
-use std::{num::NonZeroU32, ops::Deref};
+use std::ops::Deref;
 
 use smallvec::SmallVec;
 
@@ -11,10 +11,20 @@ pub struct ControlPoint {
 }
 
 impl ControlPoint {
+    /// Creates a new control point.
+    ///
+    /// # Panics
+    /// - Panics if the value is not in `0.0..=1.0`.
+    /// - Panics if the offset is non-finite or less than 0.
     pub fn new(value: Real, offset: Real) -> Self {
         if !(0.0..=1.0).contains(&value) {
             panic!("control point value must be normalized");
         }
+
+        assert!(
+            offset.is_finite() && offset >= 0.0,
+            "offset must be positive or 0 and finite"
+        );
 
         Self { value, offset }
     }
@@ -44,14 +54,14 @@ impl ControlPoint {
 pub struct ControlPoints(SmallVec<[ControlPoint; 4]>);
 
 impl ControlPoints {
+    /// Adds a point to the end of the control point list.
+    ///
+    /// # Panics
+    /// - Panics if the new control point comes before or at the same
+    ///   time as the last added point with respect to time.
+    /// - Panics if the new control point is the first and it has a non-zero offset.
     #[inline]
     pub fn add_point(&mut self, point: ControlPoint) {
-        assert!(point.value.is_finite(), "control point must be finite");
-        assert!(
-            point.offset >= 0.0 && point.offset.is_finite(),
-            "offset must be positive or 0"
-        );
-
         if let Some(last) = self.0.last() {
             assert!(
                 last.offset < point.offset,
@@ -180,6 +190,10 @@ fn lfo_saw(t: Real, p: Real) -> Real {
 }
 
 impl Lfo {
+    /// Creates a new LFO.
+    ///
+    /// # Panics
+    /// - Panics if the period is non-finite or not greater than 0.
     #[inline]
     pub fn new(kind: LfoShape, period: Real) -> Self {
         assert!(period.is_finite(), "period must be finite");
