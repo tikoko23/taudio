@@ -67,8 +67,8 @@ impl<W: WaveSource + Debug + Clone + 'static> AudioSource for Osc<W> {
     ) -> Result<(), AudioError> {
         for sample in 0..ctx.batch_size() {
             let t = ctx.time_of(sample);
-            let f = self.freq.sample(t, ctx.automations);
-            let a = self.amp.sample(t, ctx.automations);
+            let f = self.freq.sample(t, ctx.automations());
+            let a = self.amp.sample(t, ctx.automations());
 
             let out = a * self.source.sample(1.0, self.phase);
 

@@ -104,6 +104,11 @@ impl SamplingContext<'_> {
     pub fn query_automation(&self, id: AutomationId, offset: Real) -> Real {
         self.automations.query_value(id, offset)
     }
+
+    #[inline]
+    pub fn automations(&self) -> &AutomationTimeline {
+        self.automations
+    }
 }
 
 pub trait AudioNodeReflection: Any {
