@@ -380,6 +380,32 @@ impl Pipeline {
         }
     }
 
+    /// Returns a reference to a node identified by a typed node handle.
+    ///
+    /// # Panics
+    /// Panics if the given handle does not point to a valid node or the handle's type
+    /// does not match with the node's type. Note that this is not possible unless handles
+    /// from different pipelines are mixed.
+    pub fn resolve_handle<T: AudioNode>(&self, handle: &NodeHandle<T>) -> &T {
+        self.get_node(handle.id())
+            .expect("node with the given handle does not exist")
+            .downcast_ref()
+            .expect("handle type doesn't match node type")
+    }
+
+    /// Returns a reference to a node identified by a typed node handle.
+    ///
+    /// # Panics
+    /// Panics if the given handle does not point to a valid node or the handle's type
+    /// does not match with the node's type. Note that this is not possible unless handles
+    /// from different pipelines are mixed.
+    pub fn resolve_handle_mut<T: AudioNode>(&mut self, handle: &NodeHandle<T>) -> &mut T {
+        self.get_node_mut(handle.id())
+            .expect("node with the given handle does not exist")
+            .downcast_mut()
+            .expect("handle type doesn't match the node type")
+    }
+
     /// Samples from the pipeline.
     ///
     /// If the given automation timeline differs in sucessive calls, its a logic error.
