@@ -21,25 +21,22 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut pipeline = builder.build()?;
     pipeline.sample(44100, &AutomationTimeline::default())?;
 
-    let sink = pipeline
-        .get_sink_mut(sink_id)
-        .and_then(|x| x.downcast_mut::<SampleSink<sample::Int16>>());
+    let sink = pipeline.resolve_handle_mut(&sink_id);
+    let data = sink.take_channel(0);
 
-    if let Some(data) = sink.map(|s| s.take_channel(0)) {
-        let meta = WavFormatMeta {
-            sample_rate: 44100,
-            audio_format: WavFormat::Pcm,
-            num_channels: 1,
-            bits_per_sample: 16,
-        };
+    let meta = WavFormatMeta {
+        sample_rate: 44100,
+        audio_format: WavFormat::Pcm,
+        num_channels: 1,
+        bits_per_sample: 16,
+    };
 
-        let wav = WavFile::from_chunks([WavChunk::new_format(&meta), WavChunk::new_data(data)]);
+    let wav = WavFile::from_chunks([WavChunk::new_format(&meta), WavChunk::new_data(data)]);
 
-        let file = File::create("sine440hz.wav")?;
-        let mut writer = BufWriter::new(file);
+    let file = File::create("sine440hz.wav")?;
+    let mut writer = BufWriter::new(file);
 
-        wav.write(&mut writer)?;
-    }
+    wav.write(&mut writer)?;
 
     Ok(())
 }

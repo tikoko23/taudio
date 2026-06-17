@@ -63,21 +63,15 @@
 //!
 //! let mut builder = PipelineBuilder::default();
 //!
-//! let osc_id = builder.add_source(oscillator)?;
-//! let sink_id = builder.add_sink([osc_id.output(0)], sample_sink)?;
+//! let osc_handle = builder.add_source(oscillator)?;
+//! let sink_handle = builder.add_sink([osc_handle.output(0)], sample_sink)?;
 //!
 //! let mut pipeline = builder.build()?;
 //!
 //! // Sample one second worth of audio.
 //! pipeline.sample(44100, &AutomationTimeline::new())?;
 //!
-//! let sink: &mut SampleSink<sample::Int16> = pipeline
-//!     .sinks_mut()
-//!     .filter(|&(id, _)| id == sink_id)
-//!     .map(|(_, sink)| sink)
-//!     .next()
-//!     .and_then(|s| s.downcast_mut())
-//!     .unwrap();
+//! let sink = pipeline.resolve_handle_mut(&sink_handle);
 //!
 //! // Get the first channel.
 //! let data = sink.take().next().unwrap();
