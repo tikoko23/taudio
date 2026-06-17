@@ -6,8 +6,27 @@ use crate::{
     buffer::SampleChannels,
     err::AudioError,
     node::{AudioNode, AudioSource, AudioSourceCfg, AudioSourceInfo, SamplingContext},
+    pipeline::IntoNodeOutputIndex,
     waveform::WaveSource,
 };
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum OscPort {
+    /// The waveform output of the oscillator node.
+    Output(u32),
+}
+
+impl<W> IntoNodeOutputIndex<Osc<W>> for OscPort
+where
+    W: WaveSource + Debug + Clone + 'static,
+{
+    fn into_node_output_index(self) -> u32 {
+        match self {
+            Self::Output(n) => n,
+        }
+    }
+}
 
 /// An oscillator which produces samples of a specific frequency and amplitude.
 ///
