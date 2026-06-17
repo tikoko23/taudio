@@ -92,7 +92,7 @@
 //! [`Osc`]: crate::sources::Osc
 //! [`SampleSink`]: crate::sinks::SampleSink
 
-use std::{cell::RefCell, fmt::Display};
+use std::{cell::RefCell, fmt::Display, marker::PhantomData, ops::Deref};
 
 use crate::{
     automation::AutomationTimeline,
@@ -142,6 +142,21 @@ impl NodeId {
             node: self,
             output_index: n,
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct NodeHandle<T: AudioNode> {
+    id: NodeId,
+    _marker: PhantomData<T>,
+}
+
+impl<T: AudioNode> Deref for NodeHandle<T> {
+    type Target = NodeId;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self.id
     }
 }
 
