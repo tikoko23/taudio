@@ -159,6 +159,15 @@ impl<T: AudioNode> NodeHandle<T> {
     pub fn id(&self) -> NodeId {
         self.id
     }
+
+    #[inline]
+    pub fn port(&self, output: impl IntoNodeOutputIndex<T>) -> NodeOutput {
+        self.output(output.into_node_output_index())
+    }
+}
+
+pub trait IntoNodeOutputIndex<T: AudioNode> {
+    fn into_node_output_index(self) -> u32;
 }
 
 #[derive(Debug, Clone)]
