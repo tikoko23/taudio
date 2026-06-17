@@ -1,12 +1,13 @@
-use std::num::NonZero;
+use std::{marker::PhantomData, num::NonZero};
 
 use crate::{
     err::AudioError,
     id::IdContainer,
     node::{
-        AudioProcessor, AudioProcessorCfg, AudioSink, AudioSinkCfg, AudioSource, AudioSourceCfg,
+        AudioNode, AudioProcessor, AudioProcessorCfg, AudioSink, AudioSinkCfg, AudioSource,
+        AudioSourceCfg,
     },
-    pipeline::{NodeId, Pipeline, PipelineAudioNode, PipelineTemplate},
+    pipeline::{NodeHandle, NodeId, Pipeline, PipelineAudioNode, PipelineTemplate},
 };
 
 /// Handle to a node's specific output channel.
@@ -100,8 +101,11 @@ impl PipelineBuilder {
     /// Consider using [`PipelineBuilder::add_source_boxed`] if your source is already heap-allocated,
     /// or is a trait object.
     #[inline]
-    pub fn add_source<S: AudioSource>(&mut self, src: S) -> Result<NodeId, AudioError> {
-        self.add_source_boxed(Box::new(src))
+    pub fn add_source<S: AudioSource>(&mut self, src: S) -> Result<NodeHandle<S>, AudioError> {
+        Ok(NodeHandle {
+            id: self.add_source_boxed(Box::new(src))?,
+            _marker: PhantomData,
+        })
     }
 
     pub fn add_source_boxed(
@@ -126,12 +130,15 @@ impl PipelineBuilder {
     /// Consider using [`PipelineBuilder::add_processor_boxed`] if your processor is already heap-allocated,
     /// or is a trait object.
     #[inline]
-    pub fn add_processor<V, P>(&mut self, inputs: V, proc: P) -> Result<NodeId, AudioError>
+    pub fn add_processor<V, P>(&mut self, inputs: V, proc: P) -> Result<NodeHandle<P>, AudioError>
     where
         V: NodeInputs,
         P: AudioProcessor,
     {
-        self.add_processor_boxed(inputs, Box::new(proc))
+        Ok(NodeHandle {
+            id: self.add_processor_boxed(inputs, Box::new(proc))?,
+            _marker: PhantomData,
+        })
     }
 
     pub fn add_processor_boxed<V>(
@@ -164,12 +171,15 @@ impl PipelineBuilder {
     /// Consider using [`PipelineBuilder::add_sink_boxed`] if your sink is already heap-allocated,
     /// or is a trait object.
     #[inline]
-    pub fn add_sink<V, S>(&mut self, inputs: V, sink: S) -> Result<NodeId, AudioError>
+    pub fn add_sink<V, S>(&mut self, inputs: V, sink: S) -> Result<NodeHandle<S>, AudioError>
     where
         V: NodeInputs,
         S: AudioSink,
     {
-        self.add_sink_boxed(inputs, Box::new(sink))
+        Ok(NodeHandle {
+            id: self.add_sink_boxed(inputs, Box::new(sink))?,
+            _marker: PhantomData,
+        })
     }
 
     pub fn add_sink_boxed<V>(

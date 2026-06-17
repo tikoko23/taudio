@@ -160,6 +160,13 @@ impl<T: AudioNode> Deref for NodeHandle<T> {
     }
 }
 
+impl<T: AudioNode> NodeHandle<T> {
+    #[inline]
+    pub fn id(&self) -> NodeId {
+        self.id
+    }
+}
+
 #[derive(Debug, Clone)]
 pub(crate) enum PipelineAudioNode {
     Source {
