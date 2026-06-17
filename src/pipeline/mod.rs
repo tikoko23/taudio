@@ -19,8 +19,17 @@
 //! The graph representation lets the user of this module to express which inputs of which nodes
 //! belong to which outputs of which nodes (i.e. connects nodes together via the plugs).
 //!
-//! A node in a [`Pipeline`] or a [`PipelineBuilder`] can be referenced by a [`NodeId`].
-//! Such handles are returned from builder's functions.
+//! A node in a [`Pipeline`] or a [`PipelineBuilder`] can be referenced by [`NodeId`]s and
+//! [`NodeHandle`]s. Such handles are returned from builder's functions (such as
+//! [`PipelineBuilder::add_source`]).
+//!
+//! A [`NodeId`] is a type-erased handle to a node in a pipeline. Its outputs can be accessed with
+//! [`NodeId::output`]. In order to access the inner node value, downcasting on
+//! [`AudioNode`] and its derived traits' objects must be used.
+//!
+//! A [`NodeHandle`] however is a typed handle to a node in a pipeline. Its outputs can be accessed
+//! in a type-safe manner using [`NodeHandle::port`]. In order to access the inner node value,
+//! [`Pipeline::resolve_handle`] can be used. A [`NodeHandle`]'s type can be erased using [`NodeHandle::id`].
 //!
 //! An output channel of a node in a [`PipelineBuilder`] can be referenced using a [`NodeOutput`].
 //! A node output can be constructed with [`NodeId::output`].
@@ -109,7 +118,9 @@ use smallvec::SmallVec;
 pub use template::*;
 
 incremental_id! {
-    /// Handle to a node in a [`Pipeline`].
+    /// Untyped handle to a node in a [`Pipeline`].
+    ///
+    /// You may want to use a [`NodeHandle`] for type-safety if applicable.
     ///
     /// Reference the outputs of this node with [`NodeId::output`].
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -139,6 +150,13 @@ impl NodeId {
     }
 }
 
+/// Typed handle to a node in a [`Pipeline`].
+///
+/// You can create an untyped handle for the same node with [`NodeHandle::id`].
+///
+/// This is a typed wrapper around [`NodeId`] with stricter safety guarantees.
+/// Concrete-typing also allows the use of compile-time checked and more ergonomic
+/// node output access. See [`NodeHandle::port`] for more.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct NodeHandle<T: AudioNode> {
     id: NodeId,
@@ -160,13 +178,39 @@ impl<T: AudioNode> NodeHandle<T> {
         self.id
     }
 
+    /// Get a handle to an output of this node.
+    ///
+    /// This is a type safe variant of [`NodeId::output`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # use taudio::{sources::{Osc, OscPort}, waveform, pipeline::{PipelineBuilder, PipelineOpts}};
+    /// #
+    /// let osc = Osc::new(waveform::Sine, 440.0, 1.0, 2);
+    ///
+    /// let mut builder = PipelineBuilder::new(PipelineOpts::default());
+    ///
+    /// let osc_handle = builder.add_source(osc)?;
+    ///
+    /// let osc_output_left = osc_handle.port(OscPort::Output(0));
+    /// let osc_output_right = osc_handle.port(OscPort::Output(1));
+    /// #
+    /// # Ok(())
+    /// # }
+    /// ```
     #[inline]
     pub fn port(&self, output: impl IntoNodeOutputIndex<T>) -> NodeOutput {
         self.output(output.into_node_output_index())
     }
 }
 
+/// Description of how a port is mapped to a channel index.
 pub trait IntoNodeOutputIndex<T: AudioNode> {
+    /// Maps the represented port of the value to a channel index.
+    ///
+    /// See [`NodeHandle::port`] for details.
     fn into_node_output_index(self) -> u32;
 }
 

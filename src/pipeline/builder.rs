@@ -4,13 +4,15 @@ use crate::{
     err::AudioError,
     id::IdContainer,
     node::{
-        AudioNode, AudioProcessor, AudioProcessorCfg, AudioSink, AudioSinkCfg, AudioSource,
-        AudioSourceCfg,
+        AudioProcessor, AudioProcessorCfg, AudioSink, AudioSinkCfg, AudioSource, AudioSourceCfg,
     },
     pipeline::{NodeHandle, NodeId, Pipeline, PipelineAudioNode, PipelineTemplate},
 };
 
 /// Handle to a node's specific output channel.
+///
+/// You can construct instances of [`NodeOutput`] using [`NodeId::output`] and
+/// [`NodeHandle::port`].
 #[derive(Debug, Clone, Copy)]
 pub struct NodeOutput {
     pub(crate) node: NodeId,
