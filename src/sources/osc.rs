@@ -7,7 +7,7 @@ use crate::{
     err::AudioError,
     node::{AudioNode, AudioSource, AudioSourceCfg, AudioSourceInfo, SamplingContext},
     pipeline::IntoNodeOutputIndex,
-    waveform::WaveSource,
+    waveform::{self, WaveSource},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -89,10 +89,12 @@ impl<W: WaveSource + Debug + Clone + 'static> AudioSource for Osc<W> {
             let f = self.freq.sample(t, ctx.automations());
             let a = self.amp.sample(t, ctx.automations());
 
-            let out = a * self.source.sample(self.phase);
-
-            self.phase += f / ctx.get_samples_per_second() as Real;
-            self.phase %= 1.0;
+            let out = a * waveform::osc(
+                &mut self.source,
+                &mut self.phase,
+                ctx.get_samples_per_second(),
+                f,
+            );
 
             for i in 0..self.num_outputs {
                 let mut chan = output.get_channel_mut(i);
