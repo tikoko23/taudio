@@ -7,7 +7,7 @@ pub trait WaveSource {
     /// The phase parameter is expected to be in `0.0..=1.0` but there are no guarantees
     /// about the actual value passed in.
     ///
-    /// Implementations should output values within `0.0..=1.0` but this isn't strictly
+    /// Implementations should output values within `-1.0..=1.0` but this isn't strictly
     /// required.
     fn sample(&mut self, phase: Real) -> Real;
 }
