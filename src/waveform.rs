@@ -40,9 +40,8 @@ impl WaveSource for Sine {
 }
 
 impl WaveSource for Triangle {
-    // TODO: find a simpler expression
     fn sample(&mut self, phase: Real) -> Real {
-        1.0 - Real::abs(2.0 - 4.0 * ((phase + 0.25) % 1.0))
+        1.0 - f64::abs(1.0 - (f64::abs(4.0 * phase - 3.0) - 1.0))
     }
 }
 
