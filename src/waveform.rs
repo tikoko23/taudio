@@ -57,6 +57,34 @@ impl WaveSource for Saw {
     }
 }
 
+/// Sample the wave with the given frequency while updating phase information.
+///
+/// ```
+/// use taudio::waveform::{self, Sine};
+///
+/// let mut phase = 0.0;
+/// let mut samples = vec![];
+///
+/// for _ in 0..44100 {
+///     let s = waveform::osc(&mut Sine, &mut phase, 44100, 440.0);
+///
+///     samples.push(s);
+/// }
+/// ```
+pub fn osc<W: WaveSource>(
+    waveform: &mut W,
+    phase: &mut Real,
+    samples_per_second: u32,
+    freq: Real,
+) -> Real {
+    let value = waveform.sample(*phase);
+
+    *phase += freq / (samples_per_second as Real);
+    *phase %= 1.0;
+
+    value
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
