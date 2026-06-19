@@ -89,7 +89,7 @@ impl<W: WaveSource + Debug + Clone + 'static> AudioSource for Osc<W> {
             let f = self.freq.sample(t, ctx.automations());
             let a = self.amp.sample(t, ctx.automations());
 
-            let out = a * self.source.sample(1.0, self.phase);
+            let out = a * self.source.sample(self.phase);
 
             self.phase += f / ctx.get_samples_per_second() as Real;
             self.phase %= 1.0;

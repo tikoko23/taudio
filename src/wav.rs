@@ -656,7 +656,7 @@ unsafe fn flatten_channels<S: WavSample>(channels: &[&[S]]) -> Vec<u8> {
 /// for i in 0..44100 {
 ///     let t = (i as Real) / 44100.0;
 ///
-///     samples.push(waveform::Sine.sample(440.0, t) as f32)
+///     samples.push(waveform::Sine.sample(440.0 * t % 1.0) as f32)
 /// }
 ///
 /// wav::dump(path, 44100, [samples.as_slice()])?;
