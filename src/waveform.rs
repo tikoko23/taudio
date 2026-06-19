@@ -46,16 +46,14 @@ impl WaveSource for Triangle {
 }
 
 impl WaveSource for Square {
-    // TODO: find a simpler expression
     fn sample(&mut self, phase: Real) -> Real {
         2.0 * Real::round(phase) - 1.0
     }
 }
 
 impl WaveSource for Saw {
-    // TODO: find a simpler expression
     fn sample(&mut self, phase: Real) -> Real {
-        (2.0 * phase + 1.0) % 2.0 - 1.0
+        2.0 * phase - 1.0
     }
 }
 
@@ -108,11 +106,11 @@ mod test {
     fn saw_key_points() {
         let mut wave = Saw;
 
-        assert_close(wave.sample(0.0), 0.0);
-        assert_close(wave.sample(0.25), 0.5);
-        assert_close(wave.sample(0.5), -1.0);
-        assert_close(wave.sample(0.75), -0.5);
-        assert_close(wave.sample(1.0), 0.0);
+        assert_close(wave.sample(0.0), -1.0);
+        assert_close(wave.sample(0.25), -0.5);
+        assert_close(wave.sample(0.5), 0.0);
+        assert_close(wave.sample(0.75), 0.5);
+        assert_close(wave.sample(1.0), 1.0);
     }
 
     #[test]
