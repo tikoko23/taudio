@@ -48,7 +48,7 @@ impl WaveSource for Triangle {
 impl WaveSource for Square {
     // TODO: find a simpler expression
     fn sample(&mut self, phase: Real) -> Real {
-        2.0 * Real::floor(2.0 * (phase % 1.0)) - 1.0
+        2.0 * Real::round(phase) - 1.0
     }
 }
 
